@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -39,3 +39,36 @@ class TriageResult(BaseModel):
     evidence_event_indices: list[int] = Field(default_factory=list)
     suppressed_duplicate_indices: list[int] = Field(default_factory=list)
     noise_event_indices: list[int] = Field(default_factory=list)
+
+
+class DirectDiagnosis(BaseModel):
+    primary_candidate_indices: list[int] = Field(default_factory=list)
+    evidence_indices: list[int] = Field(default_factory=list)
+    propagation_event_indices: list[int] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class DirectTrace(BaseModel):
+    case_id: str | None = None
+    mode: Literal["direct"] = "direct"
+    model: str | None = None
+    provider: str | None = None
+    model_parameters: dict[str, Any] = Field(default_factory=dict)
+    input_event_count: int = 0
+    model_turns: int = 0
+    tool_calls: int = 0
+    tool_call_details: list[dict[str, Any]] = Field(default_factory=list)
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_latency_ms: float = 0.0
+    stopped_by_round_limit: bool = False
+    error: str | None = None
+    errors: list[str] = Field(default_factory=list)
+    primary_candidate_indices: list[int] = Field(default_factory=list)
+    evidence_indices: list[int] = Field(default_factory=list)
+    propagation_event_indices: list[int] = Field(default_factory=list)
+
+
+class DirectRunResult(BaseModel):
+    diagnosis: DirectDiagnosis | None = None
+    trace: DirectTrace

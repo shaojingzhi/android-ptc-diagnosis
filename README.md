@@ -126,6 +126,21 @@ PYTHONPATH=src python scripts/eval_fixed.py
 It reports Top-1/Top-3 primary-event hits and the reduction from raw events to
 one representative per Drain3 template. Event counts are not token counts.
 
+### M3a DIRECT smoke
+
+The bounded DIRECT baseline uses the same normalized events and deterministic
+diagnostic primitives as the replay pipeline. It is opt-in because it calls a
+real model provider:
+
+```bash
+pip install -e ".[direct]"
+OPENAI_API_KEY=... python scripts/eval_direct.py --trace-file /tmp/direct.jsonl
+```
+
+Set `DIRECT_MODEL` (and optionally `DIRECT_BASE_URL`) to select the provider
+configuration. The script does not run in normal CI and does not store API keys
+in the repository.
+
 ## Design rule
 
 > Add code only when it improves real executability, evaluation credibility, or interview explainability.

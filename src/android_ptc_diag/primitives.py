@@ -1,0 +1,237 @@
+"""Small deterministic evidence-manipulation primitives for M3 execution modes."""
+
+from __future__ import annotations
+
+from datetime import datetime
+import json
+from typing import Any, Callable
+
+from .models import LogEvent
+
+
+def _indices(events: list[LogEvent], selected: list[int] | None) -> list[int]:
+    values = list(range(len(events))) if selected is None else selected
+    result: list[int] = []
+    for index in values:
+        if not isinstance(index, int) or index < 0 or index >= len(events):
+            raise ValueError(f"event index out of range: {index}")
+        if index not in result:
+            result.append(index)
+    return result
+
+
+def _index_result(indices: list[int]) -> dict[str, Any]:
+    return {"indices": indices, "count": len(indices)}
+
+
+def _parse_time(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _event_dict(index: int, event: LogEvent) -> dict[str, Any]:
+    return {
+        "index": index,
+        "source": event.source,
+        "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+        "monotonic_seconds": event.monotonic_seconds,
+        "level": event.level,
+        "pid": event.pid,
+        "tid": event.tid,
+        "tag": event.tag,
+        "component": event.component,
+        "message": event.message,
+        "template_id": event.template_id,
+        "template": event.template,
+        "repeat_count": event.repeat_count,
+    }
+
+
+def get_events(events: list[LogEvent], indices: list[int] | None = None) -> dict[str, Any]:
+    selected = _indices(events, indices)
+    values = [_event_dict(index, events[index]) for index in selected]
+    return {"events": values, "count": len(values)}
+
+
+def filter_by_time(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+    start: str | None = None,
+    end: str | None = None,
+) -> dict[str, Any]:
+    start_time = _parse_time(start)
+    end_time = _parse_time(end)
+    selected = []
+    for index in _indices(events, indices):
+        timestamp = events[index].timestamp
+        if timestamp is None:
+            continue
+        if start_time is not None and timestamp < start_time:
+            continue
+        if end_time is not None and timestamp > end_time:
+            continue
+        selected.append(index)
+    return _index_result(selected)
+
+
+def filter_by_level(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+    levels: list[str] | None = None,
+) -> dict[str, Any]:
+    allowed = {level.upper() for level in (levels or [])}
+    selected = [
+        index for index in _indices(events, indices) if (events[index].level or "").upper() in allowed
+    ]
+    return _index_result(selected)
+
+
+def filter_by_text(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+    text: str = "",
+) -> dict[str, Any]:
+    needle = text.casefold()
+    selected = []
+    for index in _indices(events, indices):
+        event = events[index]
+        haystack = " ".join(filter(None, (event.message, event.tag, event.component))).casefold()
+        if needle and needle in haystack:
+            selected.append(index)
+    return _index_result(selected)
+
+
+def filter_by_tag(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
+    allowed = {tag.casefold() for tag in (tags or [])}
+    selected = [
+        index
+        for index in _indices(events, indices)
+        if (events[index].tag or "").casefold() in allowed
+        or (events[index].component or "").casefold() in allowed
+    ]
+    return _index_result(selected)
+
+
+def group_by_template(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+) -> dict[str, Any]:
+    groups: dict[str, dict[str, Any]] = {}
+    for index in _indices(events, indices):
+        event = events[index]
+        key = event.template_id or f"unclustered:{index}"
+        group = groups.setdefault(
+            key,
+            {"template_id": event.template_id, "template": event.template, "indices": []},
+        )
+        group["indices"].append(index)
+    values = []
+    for group in groups.values():
+        group["first_index"] = group["indices"][0]
+        group["count"] = len(group["indices"])
+        values.append(group)
+    return {"groups": values, "count": len(values)}
+
+
+def first_occurrence(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+) -> dict[str, Any]:
+    groups = group_by_template(events, indices)["groups"]
+    return _index_result([group["first_index"] for group in groups])
+
+
+def group_by_pid(
+    events: list[LogEvent],
+    indices: list[int] | None = None,
+) -> dict[str, Any]:
+    groups: dict[str, list[int]] = {}
+    for index in _indices(events, indices):
+        pid = events[index].pid
+        if pid is not None:
+            groups.setdefault(str(pid), []).append(index)
+    values = [{"pid": int(pid), "indices": values, "count": len(values)} for pid, values in groups.items()]
+    return {"groups": values, "count": len(values)}
+
+
+def _function_spec(
+    name: str,
+    description: str,
+    properties: dict[str, Any],
+    required: list[str] | None = None,
+) -> dict[str, Any]:
+    parameters: dict[str, Any] = {"type": "object", "properties": properties}
+    if required:
+        parameters["required"] = required
+    return {
+        "type": "function",
+        "function": {"name": name, "description": description, "parameters": parameters},
+    }
+
+
+_INDICES = {"type": "array", "items": {"type": "integer"}}
+_TOOL_DEFINITIONS = [
+    _function_spec(
+        "get_events",
+        "Read full normalized event records for explicit indices.",
+        {"indices": _INDICES},
+    ),
+    _function_spec(
+        "filter_by_time",
+        "Return event indices in an ISO wall-clock time range.",
+        {"indices": _INDICES, "start": {"type": "string"}, "end": {"type": "string"}},
+    ),
+    _function_spec(
+        "filter_by_level",
+        "Return event indices with one of the requested log levels.",
+        {"indices": _INDICES, "levels": {"type": "array", "items": {"type": "string"}}},
+    ),
+    _function_spec(
+        "filter_by_text",
+        "Return indices whose message, tag, or component contains text.",
+        {"indices": _INDICES, "text": {"type": "string"}},
+        ["text"],
+    ),
+    _function_spec(
+        "filter_by_tag",
+        "Return indices whose tag or component exactly matches a requested value.",
+        {"indices": _INDICES, "tags": {"type": "array", "items": {"type": "string"}}},
+    ),
+    _function_spec(
+        "group_by_template",
+        "Group selected events using existing Drain3 template metadata.",
+        {"indices": _INDICES},
+    ),
+    _function_spec(
+        "first_occurrence",
+        "Return the first original index for each selected template group.",
+        {"indices": _INDICES},
+    ),
+    _function_spec(
+        "group_by_pid",
+        "Group selected Logcat events by normalized PID.",
+        {"indices": _INDICES},
+    ),
+]
+
+
+def tool_definitions() -> list[dict[str, Any]]:
+    return json.loads(json.dumps(_TOOL_DEFINITIONS))
+
+
+def tool_handlers(events: list[LogEvent]) -> dict[str, Callable[..., dict[str, Any]]]:
+    return {
+        "get_events": lambda **kwargs: get_events(events, **kwargs),
+        "filter_by_time": lambda **kwargs: filter_by_time(events, **kwargs),
+        "filter_by_level": lambda **kwargs: filter_by_level(events, **kwargs),
+        "filter_by_text": lambda **kwargs: filter_by_text(events, **kwargs),
+        "filter_by_tag": lambda **kwargs: filter_by_tag(events, **kwargs),
+        "group_by_template": lambda **kwargs: group_by_template(events, **kwargs),
+        "first_occurrence": lambda **kwargs: first_occurrence(events, **kwargs),
+        "group_by_pid": lambda **kwargs: group_by_pid(events, **kwargs),
+    }
