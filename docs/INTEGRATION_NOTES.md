@@ -15,7 +15,7 @@ The minimal deliberate-crash fixture is in `eval/fixtures/java_crash_001/`. Buil
 
 ```bash
 adb-agent app install /path/to/app-debug.apk
-PYTHONPATH=src python scripts/m1_real_e2e.py --package com.example.m1crash
+PYTHONPATH=src python3 scripts/m1_real_e2e.py --package com.example.m1crash --lines 1000
 ```
 
 Pass `--device <serial-or-prefix>` when more than one device is available. The script runs `doctor`, clears Logcat, launches the fixture, waits briefly, reads unfiltered recent Logcat, feeds it to `parse_logcat()`, and requires `FATAL EXCEPTION` or an `AndroidRuntime` event. It intentionally does not rely on post-crash package-filtered Logcat, because the crashed PID may no longer exist.
