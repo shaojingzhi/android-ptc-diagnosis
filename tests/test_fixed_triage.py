@@ -25,7 +25,8 @@ def test_drain3_clusters_duplicate_binder_events():
     assert {events[index].repeat_count for index in binder_indices} == {3}
     assert binder_indices[0] in result.evidence_event_indices
     assert binder_indices[0] in [candidate.event_index for candidate in result.primary_candidates]
-    assert set(binder_indices[1:]) <= set(result.noise_event_indices)
+    assert set(binder_indices[1:]) <= set(result.suppressed_duplicate_indices)
+    assert result.noise_event_indices == []
 
 
 def test_seed_primary_events_reach_top_three():

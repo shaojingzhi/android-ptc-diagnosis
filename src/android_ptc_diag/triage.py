@@ -56,7 +56,11 @@ def _score_event(
 
 
 def fixed_triage(events: list[LogEvent], request: TriageRequest) -> TriageResult:
-    """Cluster duplicates and rank first occurrences with fixed signals only."""
+    """Cluster duplicates and rank first occurrences with fixed signals only.
+
+    Compression suppresses redundant representations; it does not classify
+    semantic noise, so ``noise_event_indices`` remains empty here.
+    """
     representative_indices = cluster_events(events)
     candidates = []
     for index in representative_indices:
@@ -69,5 +73,5 @@ def fixed_triage(events: list[LogEvent], request: TriageRequest) -> TriageResult
     return TriageResult(
         primary_candidates=candidates,
         evidence_event_indices=representative_indices,
-        noise_event_indices=duplicate_indices,
+        suppressed_duplicate_indices=duplicate_indices,
     )

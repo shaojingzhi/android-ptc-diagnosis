@@ -37,4 +37,5 @@ class TriageResult(BaseModel):
     primary_candidates: list[FailureCandidate] = Field(default_factory=list)
     propagation_event_indices: list[int] = Field(default_factory=list)
     evidence_event_indices: list[int] = Field(default_factory=list)
+    suppressed_duplicate_indices: list[int] = Field(default_factory=list)
     noise_event_indices: list[int] = Field(default_factory=list)

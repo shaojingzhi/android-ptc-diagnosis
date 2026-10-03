@@ -30,7 +30,7 @@ Output:
 - Top-K primary failure candidates
 - candidate propagation chain
 - supporting evidence
-- compressed noise clusters
+- compressed duplicate clusters
 
 Not in scope:
 
