@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+import subprocess
 
 from .models import LogEvent, TriageRequest
 
@@ -48,12 +49,50 @@ class ReplayBackend(DeviceBackend):
         return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
-class AdbMcpBackend(DeviceBackend):
-    """Integration boundary for Android-Debug-Bridge-MCP.
+class AdbCliError(RuntimeError):
+    """A failed or unavailable upstream adb-agent command."""
 
-    M0 intentionally leaves transport details out. M1 will wire a minimal MCP
-    client to the mature Android-Debug-Bridge-MCP server instead of reimplementing ADB.
-    """
+
+class AdbCliBackend(DeviceBackend):
+    """Thin adapter for the upstream Android-Debug-Bridge-MCP CLI."""
+
+    def __init__(
+        self,
+        executable: str = "adb-agent",
+        device: str | None = None,
+        log_lines: int = 200,
+    ):
+        self.executable = executable
+        self.device = device
+        self.log_lines = log_lines
+
+    def _run(self, args: list[str]) -> str:
+        command = [self.executable]
+        if self.device:
+            command.extend(["--device", self.device])
+        command.extend(args)
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+        except FileNotFoundError as exc:
+            raise AdbCliError(
+                f"Cannot find {self.executable!r}; install android-debug-bridge-mcp "
+                "and ensure adb-agent is on PATH"
+            ) from exc
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip() or "no error details"
+            raise AdbCliError(f"adb-agent command failed ({result.returncode}): {detail}")
+        return result.stdout
+
+    def doctor(self) -> str:
+        return self._run(["doctor"])
+
+    def clear_logcat(self) -> str:
+        return self._run(["system", "clear-logcat"])
+
+    def launch_app(self, package: str) -> str:
+        return self._run(["app", "launch", package])
 
     def collect_logcat(self, request: TriageRequest) -> str:
-        raise NotImplementedError("M1: connect Android-Debug-Bridge-MCP")
+        # Intentionally collect unfiltered logcat: a crashed app may no longer
+        # have a PID for adb-agent's package filter to use.
+        return self._run(["system", "logcat", "--lines", str(self.log_lines)])

@@ -1,7 +1,11 @@
 from pathlib import Path
+import subprocess
 
-from android_ptc_diag.backend import ReplayBackend
+import pytest
+
+from android_ptc_diag.backend import AdbCliBackend, AdbCliError, ReplayBackend
 from android_ptc_diag.cases import load_case
+from android_ptc_diag.models import TriageRequest
 
 
 def test_seed_cases_are_replayable():
@@ -66,3 +70,50 @@ def test_kmsg_monotonic_timestamp_is_preserved():
     assert event.source == "kmsg"
     assert event.monotonic_seconds == 222.0
     assert event.message == "lowmemorykiller: killed process 3300"
+
+
+def test_adb_cli_backend_collects_raw_logcat_and_normalizes(monkeypatch):
+    calls = []
+    raw_logcat = "10-03 10:00:02.980 4120 4120 E AndroidRuntime: FATAL EXCEPTION: main\n"
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout=raw_logcat, stderr="")
+
+    monkeypatch.setattr("android_ptc_diag.backend.subprocess.run", fake_run)
+    backend = AdbCliBackend(device="emulator-5554", log_lines=200)
+    events = backend.collect_events(TriageRequest(symptom="crash", target_package="com.demo.crash"))
+
+    assert calls == [["adb-agent", "--device", "emulator-5554", "system", "logcat", "--lines", "200"]]
+    assert events[0].tag == "AndroidRuntime"
+    assert events[0].message == "FATAL EXCEPTION: main"
+
+
+def test_adb_cli_backend_exposes_flow_commands(monkeypatch):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr("android_ptc_diag.backend.subprocess.run", fake_run)
+    backend = AdbCliBackend(device="emulator-5554")
+    backend.doctor()
+    backend.clear_logcat()
+    backend.launch_app("com.demo.crash")
+
+    assert calls == [
+        ["adb-agent", "--device", "emulator-5554", "doctor"],
+        ["adb-agent", "--device", "emulator-5554", "system", "clear-logcat"],
+        ["adb-agent", "--device", "emulator-5554", "app", "launch", "com.demo.crash"],
+    ]
+
+
+def test_adb_cli_backend_reports_cli_failure(monkeypatch):
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="device offline")
+
+    monkeypatch.setattr("android_ptc_diag.backend.subprocess.run", fake_run)
+
+    with pytest.raises(AdbCliError, match="device offline"):
+        AdbCliBackend().doctor()
