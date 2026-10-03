@@ -57,3 +57,12 @@ def test_logcat_fields_are_normalized():
         "E",
         "AndroidRuntime",
     )
+
+
+def test_kmsg_monotonic_timestamp_is_preserved():
+    from android_ptc_diag.parsing import parse_kmsg
+
+    event = parse_kmsg("[ 222.000000] lowmemorykiller: killed process 3300\n")[0]
+    assert event.source == "kmsg"
+    assert event.monotonic_seconds == 222.0
+    assert event.message == "lowmemorykiller: killed process 3300"

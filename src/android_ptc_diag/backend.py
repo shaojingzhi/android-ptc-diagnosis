@@ -49,11 +49,11 @@ class ReplayBackend(DeviceBackend):
 
 
 class AdbMcpBackend(DeviceBackend):
-    """Integration boundary for adb-automation-mcp.
+    """Integration boundary for Android-Debug-Bridge-MCP.
 
     M0 intentionally leaves transport details out. M1 will wire a minimal MCP
-    client to the mature adb-automation-mcp server instead of reimplementing ADB.
+    client to the mature Android-Debug-Bridge-MCP server instead of reimplementing ADB.
     """
 
     def collect_logcat(self, request: TriageRequest) -> str:
-        raise NotImplementedError("M1: connect adb-automation-mcp")
+        raise NotImplementedError("M1: connect Android-Debug-Bridge-MCP")

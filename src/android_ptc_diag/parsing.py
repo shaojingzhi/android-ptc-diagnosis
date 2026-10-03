@@ -60,7 +60,14 @@ def parse_kmsg(text: str) -> list[LogEvent]:
             continue
         match = _KMSG_RE.match(raw_line)
         message = match.group("message") if match else line
-        events.append(LogEvent(source="kmsg", message=message))
+        monotonic_seconds = float(match.group("seconds")) if match else None
+        events.append(
+            LogEvent(
+                source="kmsg",
+                monotonic_seconds=monotonic_seconds,
+                message=message,
+            )
+        )
     return events
 
 
