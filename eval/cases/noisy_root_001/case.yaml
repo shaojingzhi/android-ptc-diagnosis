@@ -1,0 +1,11 @@
+request:
+  symptom: "app freezes and later crashes amid many repeated binder errors"
+  target_package: "com.demo.noisy"
+  failure_timestamp: "2026-10-03T12:30:08"
+expected:
+  primary_event_contains: "lowmemorykiller killed bridge_service"
+  propagation_contains:
+    - "binder transaction failed"
+    - "service lookup failed"
+  noise_contains:
+    - "BluetoothManager"

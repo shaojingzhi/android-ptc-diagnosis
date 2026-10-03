@@ -1,0 +1,1 @@
+"""Android PTC diagnosis prototype."""

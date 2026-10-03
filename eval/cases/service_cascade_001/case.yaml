@@ -1,0 +1,11 @@
+request:
+  symptom: "app cannot start because a required container service becomes unavailable"
+  target_package: "com.demo.client"
+  failure_timestamp: "2026-10-03T11:20:06"
+expected:
+  primary_event_contains: "bridge_service terminated"
+  propagation_contains:
+    - "binder transaction failed"
+    - "required service unavailable"
+  noise_contains:
+    - "thermal sensor read timeout"

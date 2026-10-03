@@ -1,0 +1,2 @@
+[ 100.010000] audit: harmless historical warning
+[ 142.100000] container: bridge_service exit observed

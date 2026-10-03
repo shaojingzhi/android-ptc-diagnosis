@@ -1,0 +1,6 @@
+10-03 11:19:40.000  700  701 E ThermalHAL: thermal sensor read timeout
+10-03 11:20:02.100 2200 2200 E ContainerRuntime: bridge_service terminated unexpectedly
+10-03 11:20:02.300 2300 2310 E Binder: binder transaction failed for bridge_service
+10-03 11:20:03.000 2450 2450 E ClientRuntime: required service unavailable: bridge_service
+10-03 11:20:05.500 2450 2450 E AndroidRuntime: FATAL EXCEPTION: main
+10-03 11:20:05.501 2450 2450 E AndroidRuntime: java.lang.RuntimeException: startup dependency unavailable

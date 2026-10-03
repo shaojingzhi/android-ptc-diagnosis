@@ -1,0 +1,10 @@
+request:
+  symptom: "com.demo.crash starts and immediately exits"
+  target_package: "com.demo.crash"
+  failure_timestamp: "2026-10-03T10:00:03"
+expected:
+  primary_event_contains: "FATAL EXCEPTION"
+  propagation_contains:
+    - "Process com.demo.crash has died"
+  noise_contains:
+    - "WifiVendorHal"

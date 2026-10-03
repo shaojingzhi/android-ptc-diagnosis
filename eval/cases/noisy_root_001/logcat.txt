@@ -1,0 +1,7 @@
+10-03 12:29:30.000 1000 1010 W BluetoothManager: profile proxy not connected
+10-03 12:30:02.000 1000 1050 E ActivityManager: lowmemorykiller killed bridge_service pid=3300
+10-03 12:30:02.100 4400 4410 E Binder: binder transaction failed pid=3300 code=1
+10-03 12:30:02.101 4400 4410 E Binder: binder transaction failed pid=3300 code=1
+10-03 12:30:02.102 4400 4410 E Binder: binder transaction failed pid=3300 code=1
+10-03 12:30:03.000 4500 4500 E ServiceManager: service lookup failed: bridge_service
+10-03 12:30:07.000 4500 4500 E AndroidRuntime: FATAL EXCEPTION: main
