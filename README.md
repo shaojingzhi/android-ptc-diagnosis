@@ -117,6 +117,15 @@ Keep the first version small:
 - Model Turns
 - Latency
 
+Run the deterministic M2 replay baseline with:
+
+```bash
+PYTHONPATH=src python scripts/eval_fixed.py
+```
+
+It reports Top-1/Top-3 primary-event hits and the reduction from raw events to
+one representative per Drain3 template. Event counts are not token counts.
+
 ## Design rule
 
 > Add code only when it improves real executability, evaluation credibility, or interview explainability.

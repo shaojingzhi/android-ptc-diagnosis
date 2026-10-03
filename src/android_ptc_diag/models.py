@@ -17,6 +17,7 @@ class LogEvent(BaseModel):
     component: str | None = None
     message: str
     template_id: str | None = None
+    template: str | None = None
     repeat_count: int = 1
 
 
