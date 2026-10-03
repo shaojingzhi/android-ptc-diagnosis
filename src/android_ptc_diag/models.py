@@ -56,6 +56,7 @@ class DirectTrace(BaseModel):
     model_parameters: dict[str, Any] = Field(default_factory=dict)
     input_event_count: int = 0
     model_turns: int = 0
+    tool_calling_rounds: int = 0
     tool_calls: int = 0
     tool_call_details: list[dict[str, Any]] = Field(default_factory=list)
     input_tokens: int | None = None

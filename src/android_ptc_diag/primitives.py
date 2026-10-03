@@ -132,7 +132,7 @@ def group_by_template(
         group["indices"].append(index)
     values = []
     for group in groups.values():
-        group["first_index"] = group["indices"][0]
+        group["first_index"] = min(group["indices"])
         group["count"] = len(group["indices"])
         values.append(group)
     return {"groups": values, "count": len(values)}

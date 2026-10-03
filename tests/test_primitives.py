@@ -78,6 +78,12 @@ def test_grouping_preserves_original_indices():
     }
 
 
+def test_first_occurrence_uses_original_event_order():
+    events = _events()
+
+    assert first_occurrence(events, indices=[2, 1, 0]) == {"indices": [1, 0], "count": 2}
+
+
 def test_get_events_is_the_only_full_record_result():
     event = _events()[1]
     result = get_events([event])

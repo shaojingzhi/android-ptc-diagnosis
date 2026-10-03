@@ -78,14 +78,15 @@ def main() -> None:
         if args.trace_file:
             _write_trace(args.trace_file, result.trace.model_dump())
 
-    print("case                top1  top3  turns  tools  tokens  latency_ms  errors")
+    print("case                top1  top3  turns  rounds  tools  tokens  latency_ms  errors")
     for name, top1, top3, trace in rows:
         tokens = None
         if trace.input_tokens is not None or trace.output_tokens is not None:
             tokens = (trace.input_tokens or 0) + (trace.output_tokens or 0)
         print(
             f"{name:<19} {str(top1):<5} {str(top3):<5} {trace.model_turns:>6} "
-            f"{trace.tool_calls:>6} {str(tokens):>7} {trace.total_latency_ms:>11.1f} "
+            f"{trace.tool_calling_rounds:>7} {trace.tool_calls:>6} {str(tokens):>7} "
+            f"{trace.total_latency_ms:>11.1f} "
             f"{len(trace.errors):>6}"
         )
 
