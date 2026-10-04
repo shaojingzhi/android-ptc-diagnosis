@@ -77,7 +77,8 @@ def _call_name(call: dict[str, Any]) -> str:
     return str(call.get("name") or "unknown")
 
 
-def _program_calls(code: str) -> list[dict[str, Any]]:
+def _static_program_calls(code: str) -> list[dict[str, Any]]:
+    """List primitive call sites in generated source; this is not runtime usage."""
     calls: list[dict[str, Any]] = []
     try:
         tree = ast.parse(code)
@@ -126,7 +127,7 @@ def _tool_trace(messages: list[Any]) -> tuple[list[dict[str, Any]], list[str], l
                     "sha256": hashlib.sha256(code.encode()).hexdigest(),
                     "length": len(code),
                     "text": _redact(code),
-                    "primitive_calls": _program_calls(code),
+                    "static_primitive_calls": _static_program_calls(code),
                 }
             )
         if _message_type(message) != "tool":
@@ -198,6 +199,7 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         env={
             "PTC_SNAPSHOT_B64": snapshot_b64,
             "ANDROID_PTC_SRC": str(REPO_ROOT / "src"),
+            "PTC_PRIMITIVE_TRACE_FILE": "/home/daytona/data/primitive-calls.jsonl",
         },
     )
     config = AgentConfig.create(
@@ -229,6 +231,7 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "total_tokens": None,
         "execute_code_count": 0,
         "generated_programs": [],
+        "static_primitive_calls": [],
         "execute_code_results": [],
         "primitive_calls": [],
         "sandbox_startup_ms": None,
@@ -300,9 +303,34 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         trace["execute_code_results"] = execute_results
         trace["execute_code_count"] = tool_names.count("execute_code")
         trace["forbidden_tool_use"] = sorted(set(tool_names) - ALLOWED_AGENT_TOOLS)
-        trace["primitive_calls"] = [
-            call for program in programs for call in program["primitive_calls"]
+        trace["static_primitive_calls"] = [
+            call
+            for program in programs
+            for call in program["static_primitive_calls"]
         ]
+        runtime_trace_error: str | None = None
+        try:
+            runtime_trace_bytes = await session.sandbox.adownload_file_bytes(
+                "/home/daytona/data/primitive-calls.jsonl"
+            )
+        except Exception as exc:  # noqa: BLE001 - preserve a clear trace error
+            runtime_trace_bytes = None
+            runtime_trace_error = f"runtime primitive trace missing: {exc}"
+        if runtime_trace_bytes is None:
+            trace["errors"].append(runtime_trace_error or "runtime primitive trace missing")
+        else:
+            try:
+                runtime_calls: list[dict[str, Any]] = []
+                for line in runtime_trace_bytes.decode("utf-8").splitlines():
+                    if not line.strip():
+                        continue
+                    value = json.loads(line)
+                    if not isinstance(value, dict):
+                        raise ValueError("trace record is not an object")
+                    runtime_calls.append(value)
+                trace["primitive_calls"] = runtime_calls
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                trace["errors"].append(f"malformed runtime primitive trace: {exc}")
         diagnosis, error = _diagnosis(messages, len(events))
         trace["final"] = diagnosis
         if trace["execute_code_count"] == 0:

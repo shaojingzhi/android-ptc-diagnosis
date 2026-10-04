@@ -17,7 +17,11 @@ The runtime pins `mcp<2` because this upstream revision uses the MCP v1
 The runner creates one frozen normalized snapshot per replay case, connects the
 eight existing primitives through the thin `diagnostic_mcp.py` wrapper, and
 records PTC-specific trace data. It never uploads the repository or credentials
-to the sandbox.
+to the sandbox. Generated programs retain static primitive call sites for
+explanation, while `trace["primitive_calls"]` is populated only from the
+runtime JSONL invocation trace at `/home/daytona/data/primitive-calls.jsonl`.
+That runtime trace records primitive name, argument summary, result count and
+bytes, latency, and errors without writing full event results.
 
 ## Environment
 
