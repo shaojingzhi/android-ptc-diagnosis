@@ -1,4 +1,4 @@
-"""Run the bounded DIRECT baseline against replay cases with OpenAI ChatGPT."""
+"""Run the bounded DIRECT baseline against replay cases."""
 
 from __future__ import annotations
 
@@ -14,17 +14,24 @@ from android_ptc_diag.clustering import cluster_events
 from android_ptc_diag.execution import DirectExecutor
 
 
-def _build_model(model_name: str, base_url: str | None) -> Any:
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise SystemExit("OPENAI_API_KEY is required for the real DIRECT smoke run")
+def _build_model(provider: str, model_name: str, base_url: str | None) -> Any:
+    provider = provider.lower()
+    if provider not in {"openai", "deepseek"}:
+        raise SystemExit(f"unsupported DIRECT_PROVIDER: {provider}")
+    key_name = "DEEPSEEK_API_KEY" if provider == "deepseek" else "OPENAI_API_KEY"
+    api_key = os.environ.get(key_name)
+    if not api_key:
+        raise SystemExit(f"{key_name} is required for the real DIRECT smoke run")
     try:
         from langchain_openai import ChatOpenAI
     except ImportError as exc:
         raise SystemExit('Install the optional DIRECT dependency with: pip install -e ".[direct]"') from exc
 
-    kwargs = {"model": model_name, "temperature": 0}
+    kwargs = {"model": model_name, "api_key": api_key, "temperature": 0}
     if base_url:
         kwargs["base_url"] = base_url
+    if provider == "deepseek":
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     return ChatOpenAI(**kwargs)
 
 
@@ -46,12 +53,21 @@ def _write_trace(path: Path, trace: dict[str, Any]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the M3a DIRECT replay smoke test")
     parser.add_argument("--case", help="one case directory name; default: all replay cases")
-    parser.add_argument("--model", default=os.environ.get("DIRECT_MODEL", "gpt-4o-mini"))
+    parser.add_argument("--provider", default=os.environ.get("DIRECT_PROVIDER", "openai"))
+    parser.add_argument("--model", default=os.environ.get("DIRECT_MODEL"))
     parser.add_argument("--base-url", default=os.environ.get("DIRECT_BASE_URL"))
     parser.add_argument("--trace-file", type=Path, help="optional JSONL trace output path")
     args = parser.parse_args()
 
-    model = _build_model(args.model, args.base_url)
+    provider = args.provider.lower()
+    model_name = args.model or ("deepseek-v4-pro" if provider == "deepseek" else "gpt-4o-mini")
+    base_url = args.base_url
+    if provider == "deepseek" and base_url is None:
+        base_url = "https://api.deepseek.com"
+    model = _build_model(provider, model_name, base_url)
+    model_parameters = {"temperature": 0}
+    if provider == "deepseek":
+        model_parameters["thinking"] = "disabled"
     cases_root = Path(__file__).parents[1] / "eval" / "cases"
     rows = []
     for case_dir in _case_dirs(cases_root, args.case):
@@ -61,7 +77,11 @@ def main() -> None:
         result = DirectExecutor(model, events).run(
             request,
             case_id=case_dir.name,
-            model_metadata={"model": args.model, "provider": "openai"},
+            model_metadata={
+                "model": model_name,
+                "provider": provider,
+                "parameters": model_parameters,
+            },
         )
         diagnosis = result.diagnosis
         primary = diagnosis.primary_candidate_indices if diagnosis else []
