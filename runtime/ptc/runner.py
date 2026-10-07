@@ -43,7 +43,8 @@ PRIMITIVE_NAMES = {
     "group_by_pid",
 }
 ALLOWED_AGENT_TOOLS = {"execute_code"}
-SECRET_PATTERN = re.compile(r"sk-[A-Za-z0-9_-]+")
+FRAMEWORK_FILESYSTEM_TOOLS = {"read_file", "write_file", "edit_file", "glob", "grep", "ls"}
+SECRET_PATTERN = re.compile(r"(?:sk-|dtn_)[A-Za-z0-9_-]+")
 
 
 def _model() -> Any:
@@ -111,17 +112,46 @@ def _redact(value: str, limit: int = 1200) -> str:
     return SECRET_PATTERN.sub("<redacted>", value)[:limit]
 
 
-def _tool_trace(messages: list[Any]) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]]]:
+def _redact_arguments(value: Any) -> Any:
+    if isinstance(value, str):
+        return _redact(value, limit=500)
+    if isinstance(value, list):
+        return [_redact_arguments(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redact_arguments(item) for key, item in value.items()}
+    return value
+
+
+def _tool_trace(
+    messages: list[Any],
+) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]], list[dict[str, Any]]]:
     programs: list[dict[str, Any]] = []
     tool_names: list[str] = []
+    tool_name_by_id: dict[str, str] = {}
+    agent_calls: list[dict[str, Any]] = []
     execute_results: list[dict[str, Any]] = []
     for message in messages:
         for call in getattr(message, "tool_calls", []) or []:
             name = _call_name(call)
             tool_names.append(name)
+            call_id = call.get("id")
+            if call_id:
+                tool_name_by_id[str(call_id)] = name
+            arguments = call.get("args") or {}
+            argument_summary = _redact_arguments(arguments)
             if name != "execute_code":
+                agent_calls.append({"tool": name, "arguments": argument_summary})
                 continue
-            code = (call.get("args") or {}).get("code", "")
+            code = arguments.get("code", "")
+            agent_calls.append(
+                {
+                    "tool": name,
+                    "arguments": {
+                        "code_sha256": hashlib.sha256(code.encode()).hexdigest(),
+                        "code_length": len(code),
+                    },
+                }
+            )
             programs.append(
                 {
                     "sha256": hashlib.sha256(code.encode()).hexdigest(),
@@ -130,7 +160,11 @@ def _tool_trace(messages: list[Any]) -> tuple[list[dict[str, Any]], list[str], l
                     "static_primitive_calls": _static_program_calls(code),
                 }
             )
+    for message in messages:
         if _message_type(message) != "tool":
+            continue
+        call_id = str(getattr(message, "tool_call_id", ""))
+        if tool_name_by_id.get(call_id) != "execute_code":
             continue
         content = str(getattr(message, "content", ""))
         execute_results.append(
@@ -140,7 +174,58 @@ def _tool_trace(messages: list[Any]) -> tuple[list[dict[str, Any]], list[str], l
                 "preview": _redact(content),
             }
         )
-    return programs, tool_names, execute_results
+    return programs, tool_names, execute_results, agent_calls
+
+
+def _evidence_boundary_audit(
+    agent_calls: list[dict[str, Any]],
+) -> tuple[bool, dict[str, Any]]:
+    checks: dict[str, Any] = {
+        "read_primitive_trace": False,
+        "read_snapshot_file": False,
+        "read_embedded_mcp_environment": False,
+        "modified_diagnostic_code": False,
+        "reasons": [],
+    }
+    protected_code = (
+        "/mcp_servers/diagnostic_mcp.py",
+        "/tools/diagnostic.py",
+        "/tools/mcp_client.py",
+        "/tools/android_ptc_diag/",
+    )
+    for call in agent_calls:
+        tool = call["tool"]
+        if tool not in {"read_file", "write_file", "edit_file"}:
+            continue
+        arguments = call["arguments"]
+        paths = [
+            str(value)
+            for key, value in arguments.items()
+            if "path" in key.lower() or "file" in key.lower()
+        ]
+        for raw_path in paths:
+            path = raw_path.lower()
+            normalized_path = "/" + path.lstrip("/")
+            if tool == "read_file" and "primitive-calls.jsonl" in path:
+                checks["read_primitive_trace"] = True
+                checks["reasons"].append(f"read runtime primitive trace: {raw_path}")
+            if tool == "read_file" and "snapshot" in path:
+                checks["read_snapshot_file"] = True
+                checks["reasons"].append(f"read snapshot-bearing file: {raw_path}")
+            if tool == "read_file" and (
+                "/tools/mcp_client.py" in normalized_path
+                or "/proc/" in normalized_path
+                or "environ" in path
+            ):
+                checks["read_embedded_mcp_environment"] = True
+                checks["reasons"].append(f"read embedded MCP environment: {raw_path}")
+            if tool in {"write_file", "edit_file"} and any(
+                protected in normalized_path for protected in protected_code
+            ):
+                checks["modified_diagnostic_code"] = True
+                checks["reasons"].append(f"modified diagnostic code: {raw_path}")
+    bypass = any(value is True for key, value in checks.items() if key != "reasons")
+    return bypass, checks
 
 
 def _diagnosis(messages: list[Any], event_count: int) -> tuple[dict[str, Any] | None, str | None]:
@@ -233,6 +318,8 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "generated_programs": [],
         "static_primitive_calls": [],
         "execute_code_results": [],
+        "agent_tool_calls": [],
+        "framework_auxiliary_tool_use": [],
         "primitive_calls": [],
         "sandbox_startup_ms": None,
         "execution_ms": None,
@@ -245,6 +332,8 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "top3": False,
         "errors": [],
         "forbidden_tool_use": [],
+        "evidence_bypass": False,
+        "evidence_boundary_checks": {},
         "available_tools": [],
         "invalid": False,
     }
@@ -305,11 +394,20 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         trace["input_tokens"], trace["output_tokens"] = _model_usage(messages)
         if trace["input_tokens"] is not None and trace["output_tokens"] is not None:
             trace["total_tokens"] = trace["input_tokens"] + trace["output_tokens"]
-        programs, tool_names, execute_results = _tool_trace(messages)
+        programs, tool_names, execute_results, agent_calls = _tool_trace(messages)
         trace["generated_programs"] = programs
         trace["execute_code_results"] = execute_results
+        trace["agent_tool_calls"] = agent_calls
         trace["execute_code_count"] = tool_names.count("execute_code")
-        trace["forbidden_tool_use"] = sorted(set(tool_names) - ALLOWED_AGENT_TOOLS)
+        trace["framework_auxiliary_tool_use"] = [
+            call for call in agent_calls if call["tool"] in FRAMEWORK_FILESYSTEM_TOOLS
+        ]
+        trace["forbidden_tool_use"] = sorted(
+            set(tool_names) - ALLOWED_AGENT_TOOLS - FRAMEWORK_FILESYSTEM_TOOLS
+        )
+        trace["evidence_bypass"], trace["evidence_boundary_checks"] = (
+            _evidence_boundary_audit(agent_calls)
+        )
         trace["static_primitive_calls"] = [
             call
             for program in programs
@@ -362,6 +460,9 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
             trace["errors"].append(error)
         if trace["forbidden_tool_use"]:
             trace["errors"].append(f"forbidden tool use: {trace['forbidden_tool_use']}")
+        if trace["evidence_bypass"]:
+            reasons = trace["evidence_boundary_checks"]["reasons"]
+            trace["errors"].append(f"diagnostic evidence bypass: {reasons}")
         trace["invalid"] = bool(trace["errors"])
     except Exception as exc:  # noqa: BLE001 - preserve external integration failures in trace
         trace["errors"].append(str(exc))
