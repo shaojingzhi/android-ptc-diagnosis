@@ -124,12 +124,19 @@ def _redact_arguments(value: Any) -> Any:
 
 def _tool_trace(
     messages: list[Any],
-) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[str],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[str],
+]:
     programs: list[dict[str, Any]] = []
     tool_names: list[str] = []
     tool_name_by_id: dict[str, str] = {}
     agent_calls: list[dict[str, Any]] = []
     execute_results: list[dict[str, Any]] = []
+    attribution_errors: list[str] = []
     for message in messages:
         for call in getattr(message, "tool_calls", []) or []:
             name = _call_name(call)
@@ -164,6 +171,9 @@ def _tool_trace(
         if _message_type(message) != "tool":
             continue
         call_id = str(getattr(message, "tool_call_id", ""))
+        if call_id not in tool_name_by_id:
+            attribution_errors.append(f"unmatched tool result: {call_id or '<missing id>'}")
+            continue
         if tool_name_by_id.get(call_id) != "execute_code":
             continue
         content = str(getattr(message, "content", ""))
@@ -174,7 +184,7 @@ def _tool_trace(
                 "preview": _redact(content),
             }
         )
-    return programs, tool_names, execute_results, agent_calls
+    return programs, tool_names, execute_results, agent_calls, attribution_errors
 
 
 def _evidence_boundary_audit(
@@ -226,6 +236,36 @@ def _evidence_boundary_audit(
                 checks["reasons"].append(f"modified diagnostic code: {raw_path}")
     bypass = any(value is True for key, value in checks.items() if key != "reasons")
     return bypass, checks
+
+
+def _finalize_validity(trace: dict[str, Any], final_valid: bool) -> None:
+    results = trace["execute_code_results"]
+    trace["execute_code_successes"] = sum(result["success"] for result in results)
+    trace["execute_code_failures"] = len(results) - trace["execute_code_successes"]
+    failure_indices = [index for index, result in enumerate(results) if not result["success"]]
+    trace["recovered_execution_error"] = bool(
+        failure_indices
+        and final_valid
+        and any(result["success"] for result in results[failure_indices[0] + 1 :])
+    )
+    trace["execution_errors"] = [
+        f"execute_code[{index + 1}] failed: {result['preview']}"
+        for index, result in enumerate(results)
+        if not result["success"]
+    ]
+    if trace["execute_code_count"] == 0:
+        trace["validation_errors"].append("no execute_code call was observed")
+    if not trace["primitive_calls"]:
+        trace["validation_errors"].append("no diagnostic primitive call was observed")
+    if trace["forbidden_tool_use"]:
+        trace["validation_errors"].append(
+            f"forbidden tool use: {trace['forbidden_tool_use']}"
+        )
+    if trace["evidence_bypass"]:
+        reasons = trace["evidence_boundary_checks"]["reasons"]
+        trace["validation_errors"].append(f"diagnostic evidence bypass: {reasons}")
+    trace["errors"] = trace["validation_errors"] + trace["execution_errors"]
+    trace["invalid"] = bool(trace["validation_errors"])
 
 
 def _diagnosis(messages: list[Any], event_count: int) -> tuple[dict[str, Any] | None, str | None]:
@@ -315,11 +355,15 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "output_tokens": None,
         "total_tokens": None,
         "execute_code_count": 0,
+        "execute_code_successes": 0,
+        "execute_code_failures": 0,
+        "recovered_execution_error": False,
         "generated_programs": [],
         "static_primitive_calls": [],
         "execute_code_results": [],
         "agent_tool_calls": [],
         "framework_auxiliary_tool_use": [],
+        "tool_result_attribution_errors": [],
         "primitive_calls": [],
         "sandbox_startup_ms": None,
         "execution_ms": None,
@@ -331,6 +375,8 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "top1": False,
         "top3": False,
         "errors": [],
+        "validation_errors": [],
+        "execution_errors": [],
         "forbidden_tool_use": [],
         "evidence_bypass": False,
         "evidence_boundary_checks": {},
@@ -394,10 +440,14 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         trace["input_tokens"], trace["output_tokens"] = _model_usage(messages)
         if trace["input_tokens"] is not None and trace["output_tokens"] is not None:
             trace["total_tokens"] = trace["input_tokens"] + trace["output_tokens"]
-        programs, tool_names, execute_results, agent_calls = _tool_trace(messages)
+        programs, tool_names, execute_results, agent_calls, attribution_errors = _tool_trace(
+            messages
+        )
         trace["generated_programs"] = programs
         trace["execute_code_results"] = execute_results
         trace["agent_tool_calls"] = agent_calls
+        trace["tool_result_attribution_errors"] = attribution_errors
+        trace["validation_errors"].extend(attribution_errors)
         trace["execute_code_count"] = tool_names.count("execute_code")
         trace["framework_auxiliary_tool_use"] = [
             call for call in agent_calls if call["tool"] in FRAMEWORK_FILESYSTEM_TOOLS
@@ -422,7 +472,9 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
             runtime_trace_bytes = None
             runtime_trace_error = f"runtime primitive trace missing: {exc}"
         if runtime_trace_bytes is None:
-            trace["errors"].append(runtime_trace_error or "runtime primitive trace missing")
+            trace["validation_errors"].append(
+                runtime_trace_error or "runtime primitive trace missing"
+            )
         else:
             try:
                 runtime_calls: list[dict[str, Any]] = []
@@ -435,15 +487,11 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
                     runtime_calls.append(value)
                 trace["primitive_calls"] = runtime_calls
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-                trace["errors"].append(f"malformed runtime primitive trace: {exc}")
+                trace["validation_errors"].append(
+                    f"malformed runtime primitive trace: {exc}"
+                )
         diagnosis, error = _diagnosis(messages, len(events))
         trace["final"] = diagnosis
-        if trace["execute_code_count"] == 0:
-            trace["errors"].append("no execute_code call was observed")
-        if not trace["primitive_calls"]:
-            trace["errors"].append("no diagnostic primitive call was observed")
-        if any(not result["success"] for result in execute_results):
-            trace["errors"].append("execute_code returned an error")
         if diagnosis:
             trace["primary_candidate_indices"] = diagnosis["primary_candidate_indices"]
             trace["evidence_indices"] = diagnosis["evidence_indices"]
@@ -457,16 +505,11 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
             trace["top1"] = bool(primary_messages and expected_text in primary_messages[0])
             trace["top3"] = any(expected_text in message for message in primary_messages[:3])
         if error:
-            trace["errors"].append(error)
-        if trace["forbidden_tool_use"]:
-            trace["errors"].append(f"forbidden tool use: {trace['forbidden_tool_use']}")
-        if trace["evidence_bypass"]:
-            reasons = trace["evidence_boundary_checks"]["reasons"]
-            trace["errors"].append(f"diagnostic evidence bypass: {reasons}")
-        trace["invalid"] = bool(trace["errors"])
+            trace["validation_errors"].append(error)
+        _finalize_validity(trace, diagnosis is not None)
     except Exception as exc:  # noqa: BLE001 - preserve external integration failures in trace
-        trace["errors"].append(str(exc))
-        trace["invalid"] = True
+        trace["validation_errors"].append(str(exc))
+        _finalize_validity(trace, final_valid=False)
     finally:
         trace["total_latency_ms"] = (time.perf_counter() - total_started) * 1000
         if session is not None:
