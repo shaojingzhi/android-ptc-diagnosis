@@ -6,6 +6,8 @@ import pytest
 from android_ptc_diag.backend import AdbCliBackend, AdbCliError, ReplayBackend
 from android_ptc_diag.cases import load_case
 from android_ptc_diag.models import TriageRequest
+from android_ptc_diag.parsing import parse_logcat
+from scripts.generate_binder_flood_case import generate_binder_flood
 
 
 def test_seed_cases_are_replayable():
@@ -32,6 +34,18 @@ def test_seed_cases_load_normalized_events():
 
         if (case_dir / "kmsg.txt").exists():
             assert any(event.source == "kmsg" for event in events)
+
+
+def test_binder_flood_generator_is_deterministic_and_parseable():
+    first = generate_binder_flood()
+    second = generate_binder_flood()
+
+    assert first == second
+    events = parse_logcat("\n".join(first) + "\n", year=2026)
+    messages = [event.message for event in events]
+    assert len(events) == 500
+    assert messages.count("bridge_service terminated unexpectedly") == 1
+    assert messages.count("binder transaction failed for bridge_service") == 350
 
 
 def test_parsers_keep_malformed_lines_as_events():

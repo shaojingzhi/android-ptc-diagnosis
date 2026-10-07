@@ -126,6 +126,10 @@ PYTHONPATH=src python scripts/eval_fixed.py
 It reports Top-1/Top-3 primary-event hits and the reduction from raw events to
 one representative per Drain3 template. Event counts are not token counts.
 
+`binder_flood_001` is a deterministic synthetic stress case for repeated
+downstream Binder and service-unavailable errors. It is not production data or
+a Huawei log sample.
+
 ### M3a DIRECT smoke
 
 The bounded DIRECT baseline uses the same normalized events and deterministic
