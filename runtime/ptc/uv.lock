@@ -104,6 +104,7 @@ name = "android-ptc-diagnosis-ptc-runtime"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "deepagents" },
     { name = "drain3" },
     { name = "langchain-openai" },
     { name = "mcp" },
@@ -113,6 +114,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "deepagents", specifier = "==0.3.5" },
     { name = "drain3", specifier = ">=0.9.11" },
     { name = "langchain-openai", specifier = ">=1.0.2" },
     { name = "mcp", specifier = ">=1.0,<2" },
@@ -572,20 +574,18 @@ wheels = [
 
 [[package]]
 name = "deepagents"
-version = "0.7.21"
+version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain" },
     { name = "langchain-anthropic" },
     { name = "langchain-core" },
     { name = "langchain-google-genai" },
-    { name = "langsmith" },
-    { name = "packaging" },
     { name = "wcmatch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/6a/1dcd74589ece546a16280c33646c45439666aa40755f6e6c7bbb13ca86db/deepagents-0.7.21.tar.gz", hash = "sha256:49a594e9727c82e2354ed33bb4e656f94ec30715d1803de886792e8a6e2854e6", size = 313698, upload-time = "2026-09-30T19:28:11.383Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/30/648642f15f5e84778088e788159723ca97fe1e2a1ab2717ea7159da3f825/deepagents-0.3.5.tar.gz", hash = "sha256:9310e7b872244160555f1f2e914465b2b8682bcf5cb7c5d5f21f0b8e9fc127b2", size = 63104, upload-time = "2026-01-09T17:36:17.563Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/8d/5ad6f7271abe3d3b584c05661bc2fb0e75be7847581659e5de83c44f4592/deepagents-0.7.21-py3-none-any.whl", hash = "sha256:c8e6a89c75c62c232f6197a21af5f1298fda7eb7f1bfbc321bbabf1fa70eefed", size = 341937, upload-time = "2026-09-30T19:28:10.09Z" },
+    { url = "https://files.pythonhosted.org/packages/26/b1/670fd57c592de7c084438b52b319f7d38feab78fa6bea76f6a05fc6588ec/deepagents-0.3.5-py3-none-any.whl", hash = "sha256:9a2a08aa7523531a9f1a80d3f40f2f30d9970ea8657d4425efab1d5cf66addff", size = 68016, upload-time = "2026-01-09T17:36:16.351Z" },
 ]
 
 [[package]]

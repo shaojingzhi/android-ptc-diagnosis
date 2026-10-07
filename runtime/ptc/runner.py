@@ -254,7 +254,14 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
     try:
         session = SessionManager.get_session(session_id, config.to_core_config())
         startup_started = time.perf_counter()
-        await session.initialize()
+        original_cwd = Path.cwd()
+        # Upstream discovers stdio tools locally before uploading the server.
+        # Run that subprocess from this isolated project's dependency environment.
+        os.chdir(PTC_RUNTIME_ROOT)
+        try:
+            await session.initialize()
+        finally:
+            os.chdir(original_cwd)
         assert session.sandbox is not None
         await _upload_shared_modules(
             session.sandbox,

@@ -5,6 +5,7 @@ description = "Isolated M3b runtime for the pinned external PTC agent"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "ptc-agent @ git+https://github.com/Chen-zexi/open-ptc-agent.git@425b9575bfdcaf949b0a4053e981cf8070c70e03#subdirectory=libs/ptc-agent",
+  "deepagents==0.3.5",
   "langchain-openai>=1.0.2",
   "mcp>=1.0,<2",
   "drain3>=0.9.11",
