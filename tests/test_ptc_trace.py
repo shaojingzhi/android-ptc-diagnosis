@@ -1,6 +1,19 @@
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
-from runtime.ptc.runner import _evidence_boundary_audit, _finalize_validity, _tool_trace
+from android_ptc_diag.backend import ReplayBackend
+from android_ptc_diag.cases import load_case
+from android_ptc_diag.clustering import cluster_events
+from runtime.ptc.runner import (
+    _evidence_boundary_audit,
+    _finalize_validity,
+    _snapshot_bytes,
+    _tool_trace,
+)
+
+
+CASES = Path(__file__).parents[1] / "eval" / "cases"
 
 
 def _validity_trace(results):
@@ -19,6 +32,20 @@ def _validity_trace(results):
         "errors": [],
         "invalid": False,
     }
+
+
+def test_large_ptc_snapshot_serialization_is_deterministic():
+    case_dir = CASES / "binder_flood_001"
+    request, _ = load_case(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+    cluster_events(events)
+
+    first = _snapshot_bytes(events, request)
+    second = _snapshot_bytes(events, request)
+
+    assert first == second
+    assert len(first) > 100_000
+    assert len(json.loads(first)["events"]) == 500
 
 
 def test_tool_trace_attributes_only_execute_code_results():

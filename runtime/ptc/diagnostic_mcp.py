@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 from pathlib import Path
@@ -30,14 +29,23 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 
 def _load_events() -> list[LogEvent]:
-    encoded = os.environ.get("PTC_SNAPSHOT_B64")
-    if not encoded:
-        raise RuntimeError("PTC_SNAPSHOT_B64 is required")
-    snapshot = json.loads(base64.b64decode(encoded).decode("utf-8"))
+    path_value = os.environ.get("PTC_SNAPSHOT_FILE")
+    if not path_value:
+        raise RuntimeError("PTC_SNAPSHOT_FILE is required")
+    snapshot = json.loads(Path(path_value).read_text(encoding="utf-8"))
     return [LogEvent.model_validate(item) for item in snapshot["events"]]
 
 
-events = _load_events()
+_EVENTS_CACHE: list[LogEvent] | None = None
+
+
+def _events() -> list[LogEvent]:
+    global _EVENTS_CACHE
+    if _EVENTS_CACHE is None:
+        _EVENTS_CACHE = _load_events()
+    return _EVENTS_CACHE
+
+
 mcp = FastMCP("android-diagnostic")
 TRACE_FILE = os.environ.get("PTC_PRIMITIVE_TRACE_FILE")
 SECRET_PATTERN = re.compile(r"sk-[A-Za-z0-9_-]+")
@@ -72,7 +80,7 @@ def _safe_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
 def _invoke_traced(name: str, function: Any, **arguments: Any) -> dict[str, Any]:
     started = time.perf_counter()
     try:
-        result = function(events, **arguments)
+        result = function(_events(), **arguments)
     except Exception as exc:  # noqa: BLE001 - preserve the original primitive error
         _write_trace(
             {

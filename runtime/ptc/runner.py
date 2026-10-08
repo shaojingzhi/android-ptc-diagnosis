@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import ast
 import asyncio
-import base64
 import hashlib
 import json
 import os
@@ -32,6 +31,7 @@ from android_ptc_diag.models import LogEvent  # noqa: E402
 UPSTREAM_REVISION = "425b9575bfdcaf949b0a4053e981cf8070c70e03"
 PTC_RUNTIME_ROOT = Path(__file__).resolve().parent
 DIAGNOSTIC_MCP = PTC_RUNTIME_ROOT / "diagnostic_mcp.py"
+SNAPSHOT_FILE = "/home/daytona/data/diagnostic-snapshot.json"
 PRIMITIVE_NAMES = {
     "get_events",
     "filter_by_time",
@@ -62,12 +62,16 @@ def _model() -> Any:
     )
 
 
-def _snapshot(events: list[LogEvent], request: Any) -> str:
+def _snapshot_bytes(events: list[LogEvent], request: Any) -> bytes:
     payload = {
         "events": [event.model_dump(mode="json") for event in events],
         "request": request.model_dump(mode="json"),
     }
-    return base64.b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode()
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 def _message_type(message: Any) -> str | None:
@@ -315,14 +319,14 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
     request, expected = load_case(case_dir)
     events = ReplayBackend(case_dir).collect_events(request)
     cluster_events(events)
-    snapshot_b64 = _snapshot(events, request)
+    snapshot_bytes = _snapshot_bytes(events, request)
     server_config = MCPServerConfig(
         name="diagnostic",
         description="The eight deterministic normalized-log primitives.",
         command="uv",
         args=["run", "python", str(DIAGNOSTIC_MCP)],
         env={
-            "PTC_SNAPSHOT_B64": snapshot_b64,
+            "PTC_SNAPSHOT_FILE": SNAPSHOT_FILE,
             "ANDROID_PTC_SRC": str(REPO_ROOT / "src"),
             "PTC_PRIMITIVE_TRACE_FILE": "/home/daytona/data/primitive-calls.jsonl",
         },
@@ -350,6 +354,8 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "model_parameters": {"temperature": 0, "thinking": "disabled"},
         "upstream_revision": UPSTREAM_REVISION,
         "input_event_count": len(events),
+        "snapshot_transport": "sandbox_file",
+        "snapshot_bytes": len(snapshot_bytes),
         "model_turns": 0,
         "input_tokens": None,
         "output_tokens": None,
@@ -402,6 +408,11 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
             session.sandbox,
             getattr(session.sandbox, "_work_dir", "/home/daytona"),
         )
+        await session.sandbox.sandbox.process.exec(
+            f"mkdir -p {Path(SNAPSHOT_FILE).parent}"
+        )
+        if not await session.sandbox.aupload_file_bytes(SNAPSHOT_FILE, snapshot_bytes):
+            raise RuntimeError("failed to upload diagnostic snapshot")
         trace["sandbox_startup_ms"] = (time.perf_counter() - startup_started) * 1000
         ptc_agent = PTCAgent(config)
         agent = ptc_agent.create_agent(
