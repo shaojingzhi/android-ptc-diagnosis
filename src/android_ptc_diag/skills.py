@@ -5,17 +5,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from .models import LogEvent
-from .primitives import get_events
 
-
-def inspect_group_evidence(
-    events: list[LogEvent],
+def select_group_evidence_indices(
     groups: list[dict[str, Any]],
+    event_count: int,
     *,
     boundary_radius: int = 1,
-) -> dict[str, Any]:
-    """Fetch representative and boundary evidence for compact groups."""
+) -> list[int]:
+    """Choose evidence locations; primitives control access to raw event data."""
+    if event_count < 0:
+        raise ValueError("event_count must be non-negative")
     if boundary_radius < 0:
         raise ValueError("boundary_radius must be non-negative")
 
@@ -26,21 +25,15 @@ def inspect_group_evidence(
             for field in ("representative_index", "first_index", "last_index")
         }
         for field, index in values.items():
-            if not isinstance(index, int) or not 0 <= index < len(events):
+            if not isinstance(index, int) or not 0 <= index < event_count:
                 raise ValueError(f"invalid {field}: {index}")
             selected.add(index)
         for boundary in (values["first_index"], values["last_index"]):
             start = max(0, boundary - boundary_radius)
-            end = min(len(events), boundary + boundary_radius + 1)
+            end = min(event_count, boundary + boundary_radius + 1)
             selected.update(range(start, end))
 
-    selected_indices = sorted(selected)
-    result = get_events(events, selected_indices)
-    return {
-        "selected_indices": selected_indices,
-        "events": result["events"],
-        "group_count": len(groups),
-    }
+    return sorted(selected)
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
