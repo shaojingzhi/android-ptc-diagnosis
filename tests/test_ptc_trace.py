@@ -1,19 +1,45 @@
+import asyncio
+import inspect
 import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from android_ptc_diag.backend import ReplayBackend
 from android_ptc_diag.cases import load_case
 from android_ptc_diag.clustering import cluster_events
+from android_ptc_diag.execution import DIRECT_SYSTEM_PROMPT
 from runtime.ptc.runner import (
+    DEFAULT_SHARED_MODULES,
+    RAW_PTC_SYSTEM_SUFFIX,
+    _build_raw_task,
     _evidence_boundary_audit,
     _finalize_validity,
+    _run_case,
+    _shared_module_names,
     _snapshot_bytes,
     _tool_trace,
+    _upload_shared_modules,
 )
 
 
 CASES = Path(__file__).parents[1] / "eval" / "cases"
+
+
+class _FakeProcess:
+    async def exec(self, command):
+        self.command = command
+
+
+class _FakeSandbox:
+    def __init__(self):
+        self.sandbox = SimpleNamespace(process=_FakeProcess())
+        self.uploaded = []
+
+    async def aupload_file_bytes(self, target, content):
+        self.uploaded.append((target, content))
+        return True
 
 
 def _validity_trace(results):
@@ -46,6 +72,85 @@ def test_large_ptc_snapshot_serialization_is_deterministic():
     assert first == second
     assert len(first) > 100_000
     assert len(json.loads(first)["events"]) == 500
+
+
+def test_raw_ptc_defaults_remain_unchanged():
+    request, _ = load_case(CASES / "java_crash_001")
+    events = ReplayBackend(CASES / "java_crash_001").collect_events(request)
+    task = json.loads(_build_raw_task(request, events))
+
+    assert set(task) == {
+        "symptom",
+        "target_package",
+        "failure_timestamp",
+        "event_count",
+        "instructions",
+        "output_schema",
+    }
+    assert "compact" not in task
+    assert task["instructions"] == (
+        "Use execute_code to call only diagnostic primitives, then return the "
+        "requested diagnosis JSON."
+    )
+    assert RAW_PTC_SYSTEM_SUFFIX == (
+        DIRECT_SYSTEM_PROMPT
+        + "\nUse execute_code and the diagnostic MCP primitives. Keep intermediate "
+        "records inside the generated program and return only compact evidence."
+    )
+    assert inspect.signature(_run_case).parameters["mode"].default == "ptc"
+    assert DEFAULT_SHARED_MODULES == ("__init__.py", "models.py", "primitives.py")
+    assert _shared_module_names() == DEFAULT_SHARED_MODULES
+
+
+def test_runner_hooks_express_future_skill_mode_without_a_sandbox():
+    def marker_task(request, events):
+        return "task marker"
+
+    bound = inspect.signature(_run_case).bind(
+        CASES / "binder_flood_001",
+        Path("trace.jsonl"),
+        mode="skill_compact_ptc",
+        task_builder=marker_task,
+        system_prompt_suffix="system marker",
+        extra_shared_modules=("skills.py",),
+    )
+
+    assert bound.arguments["mode"] == "skill_compact_ptc"
+    assert bound.arguments["task_builder"](None, []) == "task marker"
+    assert bound.arguments["system_prompt_suffix"] == "system marker"
+    assert _shared_module_names(bound.arguments["extra_shared_modules"]) == (
+        "__init__.py",
+        "models.py",
+        "primitives.py",
+        "skills.py",
+    )
+
+
+def test_shared_module_upload_defaults_and_extra_module_are_deterministic():
+    default_sandbox = _FakeSandbox()
+    asyncio.run(_upload_shared_modules(default_sandbox, "/work"))
+    assert [Path(target).name for target, _ in default_sandbox.uploaded] == [
+        "__init__.py",
+        "models.py",
+        "primitives.py",
+    ]
+
+    skill_sandbox = _FakeSandbox()
+    asyncio.run(
+        _upload_shared_modules(
+            skill_sandbox, "/work", extra_modules=("skills.py",)
+        )
+    )
+    assert [Path(target).name for target, _ in skill_sandbox.uploaded] == [
+        "__init__.py",
+        "models.py",
+        "primitives.py",
+        "skills.py",
+    ]
+    with pytest.raises(ValueError, match="duplicate"):
+        _shared_module_names(("skills.py", "skills.py"))
+    with pytest.raises(ValueError, match="filenames"):
+        _shared_module_names(("../skills.py",))
 
 
 def test_tool_trace_attributes_only_execute_code_results():

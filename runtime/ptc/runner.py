@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import sys
 import time
-from typing import Any
+from typing import Any, Callable
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -45,6 +45,12 @@ PRIMITIVE_NAMES = {
 ALLOWED_AGENT_TOOLS = {"execute_code"}
 FRAMEWORK_FILESYSTEM_TOOLS = {"read_file", "write_file", "edit_file", "glob", "grep", "ls"}
 SECRET_PATTERN = re.compile(r"(?:sk-|dtn_)[A-Za-z0-9_-]+")
+RAW_PTC_SYSTEM_SUFFIX = (
+    DIRECT_SYSTEM_PROMPT
+    + "\nUse execute_code and the diagnostic MCP primitives. Keep intermediate "
+    "records inside the generated program and return only compact evidence."
+)
+DEFAULT_SHARED_MODULES = ("__init__.py", "models.py", "primitives.py")
 
 
 def _model() -> Any:
@@ -72,6 +78,27 @@ def _snapshot_bytes(events: list[LogEvent], request: Any) -> bytes:
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _build_raw_task(request: Any, events: list[LogEvent]) -> str:
+    return json.dumps(
+        {
+            "symptom": request.symptom,
+            "target_package": request.target_package,
+            "failure_timestamp": request.failure_timestamp.isoformat()
+            if request.failure_timestamp
+            else None,
+            "event_count": len(events),
+            "instructions": "Use execute_code to call only diagnostic primitives, then return the requested diagnosis JSON.",
+            "output_schema": {
+                "primary_candidate_indices": "list[int]",
+                "evidence_indices": "list[int]",
+                "propagation_event_indices": "list[int]",
+                "notes": "list[str]",
+            },
+        },
+        ensure_ascii=False,
+    )
 
 
 def _message_type(message: Any) -> str | None:
@@ -301,9 +328,23 @@ def _model_usage(messages: list[Any]) -> tuple[int | None, int | None]:
     return (input_tokens if found_input else None, output_tokens if found_output else None)
 
 
-async def _upload_shared_modules(sandbox: Any, work_dir: str) -> None:
+def _shared_module_names(extra_modules: tuple[str, ...] = ()) -> tuple[str, ...]:
+    names = (*DEFAULT_SHARED_MODULES, *extra_modules)
+    if len(names) != len(set(names)):
+        raise ValueError("duplicate shared module name")
+    if any(Path(name).name != name or Path(name).suffix != ".py" for name in names):
+        raise ValueError("shared modules must be Python filenames")
+    return names
+
+
+async def _upload_shared_modules(
+    sandbox: Any,
+    work_dir: str,
+    *,
+    extra_modules: tuple[str, ...] = (),
+) -> None:
     await sandbox.sandbox.process.exec(f"mkdir -p {work_dir}/tools/android_ptc_diag")
-    for name in ("__init__.py", "models.py", "primitives.py"):
+    for name in _shared_module_names(extra_modules):
         source = REPO_ROOT / "src" / "android_ptc_diag" / name
         if not await sandbox.aupload_file_bytes(
             f"{work_dir}/tools/android_ptc_diag/{name}", source.read_bytes()
@@ -311,7 +352,15 @@ async def _upload_shared_modules(sandbox: Any, work_dir: str) -> None:
             raise RuntimeError(f"failed to upload shared module: {name}")
 
 
-async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
+async def _run_case(
+    case_dir: Path,
+    trace_file: Path,
+    *,
+    mode: str = "ptc",
+    task_builder: Callable[[Any, list[LogEvent]], str] = _build_raw_task,
+    system_prompt_suffix: str = RAW_PTC_SYSTEM_SUFFIX,
+    extra_shared_modules: tuple[str, ...] = (),
+) -> dict[str, Any]:
     from ptc_agent import AgentConfig, PTCAgent
     from ptc_agent.config import MCPServerConfig
     from ptc_agent.core import SessionManager
@@ -348,7 +397,7 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
     )
     trace: dict[str, Any] = {
         "case_id": case_dir.name,
-        "mode": "ptc",
+        "mode": mode,
         "provider": "deepseek",
         "model": "deepseek-v4-pro",
         "model_parameters": {"temperature": 0, "thinking": "disabled"},
@@ -407,6 +456,7 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         await _upload_shared_modules(
             session.sandbox,
             getattr(session.sandbox, "_work_dir", "/home/daytona"),
+            extra_modules=extra_shared_modules,
         )
         await session.sandbox.sandbox.process.exec(
             f"mkdir -p {Path(SNAPSHOT_FILE).parent}"
@@ -419,29 +469,10 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
             sandbox=session.sandbox,
             mcp_registry=session.mcp_registry,
             subagent_names=[],
-            system_prompt_suffix=(
-                DIRECT_SYSTEM_PROMPT
-                + "\nUse execute_code and the diagnostic MCP primitives. Keep intermediate "
-                "records inside the generated program and return only compact evidence."
-            ),
+            system_prompt_suffix=system_prompt_suffix,
         )
         trace["available_tools"] = list(getattr(ptc_agent, "native_tools", []))
-        task = json.dumps(
-            {
-                "symptom": request.symptom,
-                "target_package": request.target_package,
-                "failure_timestamp": request.failure_timestamp.isoformat() if request.failure_timestamp else None,
-                "event_count": len(events),
-                "instructions": "Use execute_code to call only diagnostic primitives, then return the requested diagnosis JSON.",
-                "output_schema": {
-                    "primary_candidate_indices": "list[int]",
-                    "evidence_indices": "list[int]",
-                    "propagation_event_indices": "list[int]",
-                    "notes": "list[str]",
-                },
-            },
-            ensure_ascii=False,
-        )
+        task = task_builder(request, events)
         execution_started = time.perf_counter()
         result = await agent.ainvoke({"messages": [("user", task)]})
         trace["execution_ms"] = (time.perf_counter() - execution_started) * 1000
@@ -528,6 +559,10 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
     with trace_file.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(trace, ensure_ascii=False) + "\n")
     return trace
+
+
+async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
+    return await _run_case(case_dir, trace_file)
 
 
 def _print_row(trace: dict[str, Any]) -> None:
