@@ -9,6 +9,8 @@ from android_ptc_diag.compact import (
     compact_model_view,
     evidence_recall,
 )
+from android_ptc_diag.execution import CompactDirectExecutor, MAX_TOOL_ROUNDS
+from scripts.eval_compact_direct import _tool_metrics
 
 
 CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "binder_flood_001"
@@ -86,3 +88,55 @@ def test_compact_model_view_is_deterministic_and_omits_provenance_arrays():
         json.dumps(first, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     )
     assert model_view_bytes < raw_bytes
+
+
+def test_compact_direct_prompt_contains_all_groups_without_ground_truth_labels():
+    events = _clustered_events()
+    request, _ = load_case(CASE_DIR)
+    executor = CompactDirectExecutor(object(), events)
+
+    prompt = executor._request_prompt(request)
+    payload = json.loads(prompt.rsplit("\n", 1)[-1])
+    groups = payload["compact_evidence"]["groups"]
+
+    assert payload["raw_event_count"] == 500
+    assert payload["compact_group_count"] == 13
+    assert len(groups) == 13
+    assert all("indices" not in group for group in groups)
+    assert "bridge_service terminated unexpectedly" in prompt
+    assert "ground truth" not in prompt.lower()
+    assert "expected primary" not in prompt.lower()
+    assert "primary index 20" not in prompt.lower()
+    assert executor.max_tool_rounds == MAX_TOOL_ROUNDS == 6
+    assert len(executor.tools) == 8
+
+
+def test_compact_direct_tool_metrics_distinguish_full_and_indexed_reads():
+    details = [
+        {
+            "tool": "get_events",
+            "arguments": {},
+            "record_count": 500,
+            "result_bytes": 150_000,
+        },
+        {
+            "tool": "get_events",
+            "arguments": {"indices": [20, 21]},
+            "record_count": 2,
+            "result_bytes": 700,
+        },
+        {
+            "tool": "filter_by_text",
+            "arguments": {"text": "fatal"},
+            "record_count": 1,
+            "result_bytes": 30,
+        },
+    ]
+
+    assert _tool_metrics(details) == {
+        "get_events_total_calls": 2,
+        "get_events_full_calls": 1,
+        "get_events_indexed_calls": 1,
+        "largest_get_events_record_count": 500,
+        "largest_tool_result_bytes": 150_000,
+    }

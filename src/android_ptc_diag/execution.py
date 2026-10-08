@@ -5,6 +5,7 @@ import time
 from enum import StrEnum
 from typing import Any
 
+from .compact import build_compact_evidence, compact_model_view
 from .models import DirectDiagnosis, DirectRunResult, DirectTrace, LogEvent, TriageRequest
 from .primitives import tool_definitions, tool_handlers
 
@@ -240,6 +241,38 @@ class DirectExecutor:
         if error:
             detail["error"] = error
         return detail, result
+
+
+class CompactDirectExecutor(DirectExecutor):
+    """DIRECT execution starting from deterministic compact evidence."""
+
+    def _request_prompt(self, request: TriageRequest) -> str:
+        compact = compact_model_view(build_compact_evidence(self.events))
+        payload = {
+            "symptom": request.symptom,
+            "target_package": request.target_package,
+            "failure_timestamp": request.failure_timestamp.isoformat()
+            if request.failure_timestamp
+            else None,
+            "raw_event_count": len(self.events),
+            "compact_group_count": compact["group_count"],
+            "compact_evidence": compact,
+            "output_schema": {
+                "primary_candidate_indices": "list[int]",
+                "evidence_indices": "list[int]",
+                "propagation_event_indices": "list[int]",
+                "notes": "list[str]",
+            },
+        }
+        instructions = (
+            "The compact evidence is a deterministic, provenance-preserving summary "
+            "covering all raw events. Raw events remain available through the diagnostic "
+            "primitives. Start diagnosis from the compact evidence. Use get_events with "
+            "specific indices when original event text is needed. Count is the group size; "
+            "first_index and last_index bound its occurrences; representative_index is its "
+            "first raw event. Do not assume the compact representation itself proves causality."
+        )
+        return instructions + "\n" + json.dumps(payload, ensure_ascii=False)
 
 
 class PtcExecutor:
