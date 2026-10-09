@@ -140,8 +140,39 @@ def test_inspect_group_evidence_fetches_only_bounded_indices(monkeypatch):
     assert calls == [expected]
     assert result["indices"] == expected
     assert result["count"] == 13
-    assert [event["index"] for event in result["events"]] == expected
+    assert result["evidence_view"]["ordering"] == "source_local"
+    assert result["evidence_view"]["cross_source_order"] == "unknown"
+    assert [event["index"] for event in result["evidence_view"]["sources"]["logcat"]] == expected
     assert result["count"] < sum(group["count"] for group in selected_groups)
+
+
+def test_inspect_group_evidence_keeps_runtime_sources_separate(monkeypatch):
+    case_dir = Path(__file__).parents[1] / "eval" / "cases" / "runtime_mount_failure_001"
+    request, _ = load_case(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+    groups = build_compact_evidence(events)["groups"]
+    selected_groups = [
+        _group(groups, 1),
+        _group(groups, 28),
+    ]
+
+    tools_module = ModuleType("tools")
+    tools_module.__path__ = []
+    diagnostic_module = ModuleType("tools.diagnostic")
+    diagnostic_module.get_events = lambda *, indices: get_events(events, indices)
+    monkeypatch.setitem(sys.modules, "tools", tools_module)
+    monkeypatch.setitem(sys.modules, "tools.diagnostic", diagnostic_module)
+
+    result = inspect_group_evidence(selected_groups, len(events))
+    view = result["evidence_view"]
+
+    assert set(view["sources"]) == {"logcat", "kmessage"}
+    assert view["cross_source_order"] == "unknown"
+    assert [event["monotonic_seconds"] for event in view["sources"]["kmessage"]] == [
+        310.42,
+        310.43,
+    ]
+    assert [event["index"] for event in view["sources"]["logcat"]] == [0, 1, 2, 27]
 
 
 def test_selection_does_not_require_group_provenance_indices():

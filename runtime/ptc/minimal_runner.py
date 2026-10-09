@@ -48,11 +48,12 @@ cascading-error candidates; it does not prove strict causality.
 Reusable deterministic evidence Skill:
 from tools.android_ptc_diag.skills import inspect_group_evidence
 - inspect_group_evidence(groups, event_count, boundary_radius=1) ->
-  {indices, events, count}
+  {indices, count, evidence_view}
 It internally selects bounded boundary indices, calls get_events(indices=...),
-and builds the timeline. You choose suspect groups; do not manually pass an
-index list into separate raw-evidence/timeline steps or read raw evidence
-outside this Skill.
+and returns source-local evidence_view. You choose suspect groups; do not
+manually pass an index list into separate raw-evidence/timeline steps or read
+raw evidence outside this Skill. evidence_view has ordering="source_local",
+cross_source_order="unknown", and source buckets; do not infer a global order.
 
 Diagnostic primitives:
 from tools.diagnostic import get_events, filter_by_time, filter_by_level, filter_by_text,

@@ -71,6 +71,8 @@ def test_minimal_prompt_exposes_only_bounded_api_contract():
         assert name in prompt
     assert "select_group_evidence_indices" not in prompt
     assert "build_timeline" not in prompt
+    assert "evidence_view" in prompt
+    assert "cross_source_order=\"unknown\"" in prompt
     assert "Do not read files" in prompt
     assert "diagnose_root_cause" not in prompt
     source = inspect.getsource(minimal_runner)

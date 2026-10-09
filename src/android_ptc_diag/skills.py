@@ -153,6 +153,6 @@ def inspect_group_evidence(
     events = fetched.get("events", [])
     return {
         "indices": indices,
-        "events": build_timeline(events),
+        "evidence_view": build_evidence_view(events),
         "count": len(events),
     }
