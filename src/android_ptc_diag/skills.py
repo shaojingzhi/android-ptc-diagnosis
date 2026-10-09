@@ -82,6 +82,56 @@ def build_timeline(selected_events: list[dict[str, Any]]) -> list[dict[str, Any]
     return entries
 
 
+def build_evidence_view(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Keep mixed-source evidence source-local when clocks are incomparable.
+
+    Logcat wall-clock timestamps and KMessage monotonic seconds have no shared
+    epoch in the normalized data.  This view therefore exposes independently
+    ordered source buckets and intentionally does not return a global event
+    sequence.
+    """
+    sources: dict[str, list[dict[str, Any]]] = {}
+    for event in events:
+        index = event.get("index")
+        source = event.get("source")
+        if not isinstance(index, int) or not isinstance(source, str):
+            raise ValueError("evidence events require integer index and source")
+        bucket = "kmessage" if source == "kmsg" else source
+        sources.setdefault(bucket, []).append(dict(event))
+
+    for bucket, values in sources.items():
+        clocks: list[Any] = []
+        for value in values:
+            if bucket == "kmessage":
+                clock = value.get("monotonic_seconds")
+            else:
+                clock = _parse_timestamp(value.get("timestamp"))
+            clocks.append(clock)
+
+        try:
+            values[:] = [
+                value
+                for _, value in sorted(
+                    zip(clocks, values),
+                    key=lambda item: (
+                        item[0] is None,
+                        item[0] if item[0] is not None else 0,
+                        item[1]["index"],
+                    ),
+                )
+            ]
+        except TypeError:
+            # Mixed timestamp awareness/representations are not comparable;
+            # use a deterministic per-source fallback, never a cross-source one.
+            values.sort(key=lambda value: value["index"])
+
+    return {
+        "ordering": "source_local",
+        "cross_source_order": "unknown",
+        "sources": sources,
+    }
+
+
 def inspect_group_evidence(
     groups: list[dict[str, Any]],
     event_count: int,

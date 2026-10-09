@@ -8,6 +8,7 @@ from android_ptc_diag.clustering import cluster_events
 from android_ptc_diag.compact import build_compact_evidence
 from android_ptc_diag.primitives import get_events
 from android_ptc_diag.skills import (
+    build_evidence_view,
     build_timeline,
     inspect_group_evidence,
     select_group_evidence_indices,
@@ -182,3 +183,46 @@ def test_timeline_falls_back_to_index_when_timestamps_are_missing():
     ]
 
     assert [entry["index"] for entry in build_timeline(selected)] == [1, 2]
+
+
+def test_evidence_view_keeps_runtime_case_source_local():
+    case_dir = Path(__file__).parents[1] / "eval" / "cases" / "runtime_mount_failure_001"
+    request, _ = load_case(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+    materialized = get_events(events, list(reversed(range(len(events)))))['events']
+
+    view = build_evidence_view(materialized)
+
+    assert view["ordering"] == "source_local"
+    assert view["cross_source_order"] == "unknown"
+    assert [event["index"] for event in view["sources"]["logcat"]] == list(range(28))
+    assert [event["monotonic_seconds"] for event in view["sources"]["kmessage"]] == [
+        310.42,
+        310.43,
+    ]
+    assert [event["index"] for event in view["sources"]["kmessage"]] == [28, 29]
+
+
+def test_evidence_view_does_not_infer_cross_source_order_from_indices():
+    view = build_evidence_view(
+        [
+            {
+                "index": 0,
+                "source": "kmsg",
+                "monotonic_seconds": 310.42,
+                "timestamp": None,
+                "message": "mount failed",
+            },
+            {
+                "index": 1,
+                "source": "logcat",
+                "timestamp": "2026-10-03T13:15:03",
+                "monotonic_seconds": None,
+                "message": "service unavailable",
+            },
+        ]
+    )
+
+    assert view["cross_source_order"] == "unknown"
+    assert set(view["sources"]) == {"logcat", "kmessage"}
+    assert "events" not in view

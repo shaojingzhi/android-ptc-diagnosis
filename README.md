@@ -1,6 +1,8 @@
-# Android PTC Diagnosis
+# Android Container Runtime Diagnosis
 
-A small, evaluation-first prototype for **causal log triage** in Android/container diagnostics.
+A small, evaluation-first prototype for **Android container runtime diagnosis**:
+failure attribution across the container-runtime boundary using normalized Logcat
+and KMessage evidence.
 
 ## Problem
 
@@ -8,9 +10,11 @@ Current troubleshooting often looks like:
 
 `Logcat + KMessage -> raw logs to LLM -> manual follow-up`
 
-The hard part is not finding `ERROR` lines. It is distinguishing:
+The target engineering problem is not diagnosing arbitrary Android Framework or
+application business bugs. It is distinguishing, around the container-runtime
+boundary:
 
-- the **primary failure candidate** that first affected the app,
+- the **primary failure candidate** at the runtime/container boundary,
 - **cascading errors** caused by that failure,
 - and unrelated / historical **noise**.
 
@@ -21,7 +25,7 @@ This project keeps the scope deliberately narrow: use real ADB where possible, r
 Input:
 
 - Logcat
-- optional KMessage / kernel-like logs
+- KMessage / kernel-like logs when available
 - target package / symptom
 - optional failure timestamp
 
@@ -31,6 +35,11 @@ Output:
 - candidate propagation chain
 - supporting evidence
 - compressed duplicate clusters
+
+The project does not claim to diagnose arbitrary Android Framework internals or
+application business logic. Binder failures are treated as runtime/service-health
+signals and cascading evidence; this project does not diagnose Binder's internal
+implementation.
 
 Not in scope:
 
@@ -81,7 +90,7 @@ The project should **adapt** these systems, not fork and rebuild them.
 
 ### M0 — scope + replay + interface
 - Freeze schemas and boundaries.
-- Three seed cases.
+- Three original seed cases plus deterministic runtime-boundary replay cases.
 - `DeviceBackend` interface.
 - Replay backend works.
 
@@ -126,9 +135,29 @@ PYTHONPATH=src python scripts/eval_fixed.py
 It reports Top-1/Top-3 primary-event hits and the reduction from raw events to
 one representative per Drain3 template. Event counts are not token counts.
 
+`java_crash_001` is the deliberate Java-crash fixture used by the M1 real-ADB E2E
+smoke test. It verifies the Android Emulator/device -> `adb-agent` -> parser path;
+it is not a claim of general Android app diagnosis.
+
 `binder_flood_001` is a deterministic synthetic stress case for repeated
-downstream Binder and service-unavailable errors. It is not production data or
-a Huawei log sample.
+downstream Binder and service-unavailable errors. Binder is used as a
+runtime/service-health signal, not as an attempt to diagnose Binder internals.
+
+`runtime_mount_failure_001` is a hand-authored deterministic synthetic case for
+container-runtime boundary attribution. Its chain is:
+
+```text
+KMessage containerfs mount failure
+  -> ContainerRuntime startup failure
+  -> runtime service unavailable
+  -> repeated Binder transaction failures
+  -> app-visible startup failure
+```
+
+It contains both KMessage and Logcat events, and uses no Huawei or other
+production data. Its listed primary candidate, supporting evidence, and
+propagation candidates are evaluation labels; they are not a claim of proven
+root cause or strict cross-source causality.
 
 ### M3a DIRECT smoke
 

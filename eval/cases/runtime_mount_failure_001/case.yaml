@@ -1,0 +1,18 @@
+metadata:
+  synthetic: true
+  provenance: "hand-authored container-runtime boundary replay; not production data"
+request:
+  symptom: "com.demo.mount cannot start because a required container mount is unavailable"
+  target_package: "com.demo.mount"
+  failure_timestamp: "2026-10-03T13:15:03"
+expected:
+  primary_event_contains: "required mount /vendor/firmware unavailable"
+  supporting_evidence_contains:
+    - "containerfs: mount /vendor/firmware failed"
+    - "runtime service bootstrap failed"
+  propagation_contains:
+    - "runtime service unavailable"
+    - "binder transaction failed"
+    - "FATAL EXCEPTION"
+  noise_contains:
+    - "thermal sensor read timeout"

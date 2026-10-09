@@ -1,0 +1,2 @@
+[ 310.420000] containerfs: mount /vendor/firmware failed: ENOENT (container boundary)
+[ 310.430000] containerfs: mount namespace remains degraded

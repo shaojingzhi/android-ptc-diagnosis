@@ -36,6 +36,32 @@ def test_seed_cases_load_normalized_events():
             assert any(event.source == "kmsg" for event in events)
 
 
+def test_runtime_mount_case_preserves_cross_boundary_evidence():
+    case_dir = Path(__file__).parents[1] / "eval" / "cases" / "runtime_mount_failure_001"
+    request, expected = load_case(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+
+    primary = [event for event in events if expected["primary_event_contains"] in event.message]
+    runtime_errors = [
+        event
+        for event in events
+        if event.tag == "RuntimeService" and "runtime service unavailable" in event.message
+    ]
+    binder_errors = [event for event in events if "binder transaction failed" in event.message]
+
+    assert len(primary) == 1
+    assert primary[0].source == "logcat"
+    assert {event.source for event in events} == {"logcat", "kmsg"}
+    assert len(runtime_errors) == 8
+    assert len(binder_errors) == 12
+    assert len(runtime_errors) + len(binder_errors) > len(primary)
+    assert any(
+        event.source == "kmsg" and "containerfs: mount /vendor/firmware failed" in event.message
+        for event in events
+    )
+    assert any("FATAL EXCEPTION" in event.message for event in events)
+
+
 def test_binder_flood_generator_is_deterministic_and_parseable():
     first = generate_binder_flood()
     second = generate_binder_flood()
