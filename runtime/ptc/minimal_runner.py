@@ -31,7 +31,11 @@ except ImportError:  # pragma: no cover - CI uses the portable fallback
     tiktoken = None
 
 MAX_MODEL_TURNS = 6
-SKILL_NAMES = {"select_group_evidence_indices", "build_timeline"}
+SKILL_NAMES = {
+    "select_group_evidence_indices",
+    "build_timeline",
+    "inspect_group_evidence",
+}
 TOKEN_ESTIMATE_METHOD = "cl100k_base" if tiktoken else "chars_div_4"
 MINIMAL_SYSTEM_PROMPT = """You diagnose Android/container failures from compact normalized-log evidence.
 Use the single execute_code tool to generate Python that dynamically selects suspect
@@ -41,10 +45,14 @@ least once. Do not read files, source code, documentation, environment variables
 snapshot, or the primitive trace. Compact evidence supports primary-failure and
 cascading-error candidates; it does not prove strict causality.
 
-Reusable deterministic Skills:
-from tools.android_ptc_diag.skills import select_group_evidence_indices, build_timeline
-- select_group_evidence_indices(groups, event_count, boundary_radius=1) -> list[int]
-- build_timeline(selected_events) -> deduplicated event dicts ordered by time/index
+Reusable deterministic evidence Skill:
+from tools.android_ptc_diag.skills import inspect_group_evidence
+- inspect_group_evidence(groups, event_count, boundary_radius=1) ->
+  {indices, events, count}
+It internally selects bounded boundary indices, calls get_events(indices=...),
+and builds the timeline. You choose suspect groups; do not manually pass an
+index list into separate raw-evidence/timeline steps or read raw evidence
+outside this Skill.
 
 Diagnostic primitives:
 from tools.diagnostic import get_events, filter_by_time, filter_by_level, filter_by_text,

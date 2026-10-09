@@ -80,3 +80,29 @@ def build_timeline(selected_events: list[dict[str, Any]]) -> list[dict[str, Any]
     else:
         entries.sort(key=lambda entry: entry["index"])
     return entries
+
+
+def inspect_group_evidence(
+    groups: list[dict[str, Any]],
+    event_count: int,
+    *,
+    boundary_radius: int = 1,
+) -> dict[str, Any]:
+    """Select, fetch, and timeline bounded raw evidence for compact groups.
+
+    The sandbox runtime provides ``tools.diagnostic.get_events``. Keeping that
+    import inside the skill makes the raw-evidence boundary explicit while
+    allowing the lower-level selection and timeline helpers to stay reusable.
+    """
+    from tools.diagnostic import get_events
+
+    indices = select_group_evidence_indices(
+        groups, event_count, boundary_radius=boundary_radius
+    )
+    fetched = get_events(indices=indices)
+    events = fetched.get("events", [])
+    return {
+        "indices": indices,
+        "events": build_timeline(events),
+        "count": len(events),
+    }

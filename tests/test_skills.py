@@ -1,3 +1,5 @@
+import sys
+from types import ModuleType
 from pathlib import Path
 
 from android_ptc_diag.backend import ReplayBackend
@@ -5,7 +7,11 @@ from android_ptc_diag.cases import load_case
 from android_ptc_diag.clustering import cluster_events
 from android_ptc_diag.compact import build_compact_evidence
 from android_ptc_diag.primitives import get_events
-from android_ptc_diag.skills import build_timeline, select_group_evidence_indices
+from android_ptc_diag.skills import (
+    build_timeline,
+    inspect_group_evidence,
+    select_group_evidence_indices,
+)
 
 
 CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "binder_flood_001"
@@ -94,6 +100,47 @@ def test_selection_is_deterministic():
     )
 
     assert first == second
+
+
+def test_inspect_group_evidence_fetches_only_bounded_indices(monkeypatch):
+    events, groups = _fixture()
+    selected_groups = [_group(groups, index) for index in (20, 21, 371, 499)]
+    calls = []
+
+    tools_module = ModuleType("tools")
+    tools_module.__path__ = []
+    diagnostic_module = ModuleType("tools.diagnostic")
+
+    def fake_get_events(*, indices):
+        calls.append(indices)
+        return get_events(events, indices)
+
+    diagnostic_module.get_events = fake_get_events
+    monkeypatch.setitem(sys.modules, "tools", tools_module)
+    monkeypatch.setitem(sys.modules, "tools.diagnostic", diagnostic_module)
+
+    result = inspect_group_evidence(selected_groups, len(events))
+
+    expected = [
+        19,
+        20,
+        21,
+        22,
+        369,
+        370,
+        371,
+        372,
+        449,
+        450,
+        451,
+        498,
+        499,
+    ]
+    assert calls == [expected]
+    assert result["indices"] == expected
+    assert result["count"] == 13
+    assert [event["index"] for event in result["events"]] == expected
+    assert result["count"] < sum(group["count"] for group in selected_groups)
 
 
 def test_selection_does_not_require_group_provenance_indices():

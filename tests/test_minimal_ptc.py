@@ -67,8 +67,10 @@ def _response(content, tool_calls, input_tokens, output_tokens):
 def test_minimal_prompt_exposes_only_bounded_api_contract():
     prompt = minimal_runner.MINIMAL_SYSTEM_PROMPT
 
-    for name in minimal_runner.SKILL_NAMES | minimal_runner.runner.PRIMITIVE_NAMES:
+    for name in minimal_runner.runner.PRIMITIVE_NAMES | {"inspect_group_evidence"}:
         assert name in prompt
+    assert "select_group_evidence_indices" not in prompt
+    assert "build_timeline" not in prompt
     assert "Do not read files" in prompt
     assert "diagnose_root_cause" not in prompt
     source = inspect.getsource(minimal_runner)
