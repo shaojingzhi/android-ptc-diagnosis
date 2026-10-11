@@ -5,7 +5,7 @@ import pytest
 
 from android_ptc_diag.backend import AdbCliBackend, AdbCliError, ReplayBackend
 from android_ptc_diag.cases import load_case
-from android_ptc_diag.models import TriageRequest
+from android_ptc_diag.models import DirectDiagnosis, TriageRequest
 from android_ptc_diag.parsing import parse_logcat
 from scripts.generate_binder_flood_case import generate_binder_flood
 
@@ -60,6 +60,41 @@ def test_runtime_mount_case_preserves_cross_boundary_evidence():
         for event in events
     )
     assert any("FATAL EXCEPTION" in event.message for event in events)
+
+
+def test_runtime_mount_case_supports_evidence_driven_diagnosis_contract():
+    case_dir = Path(__file__).parents[1] / "eval" / "cases" / "runtime_mount_failure_001"
+    request, expected = load_case(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+    primary_index = next(
+        index
+        for index, event in enumerate(events)
+        if expected["primary_event_contains"] in event.message
+    )
+
+    diagnosis = DirectDiagnosis.model_validate(
+        {
+            "primary_candidate_indices": [primary_index],
+            "evidence_indices": [1, 2, 28, 29],
+            "propagation_event_indices": list(range(3, 28)),
+            "uncertainties": [
+                "cross-source order unknown",
+                "why the required mount is unavailable is not established",
+            ],
+            "recommended_next_checks": [
+                "Inspect container mount state and required resource availability",
+                "Check runtime service and process state after mount setup",
+            ],
+        }
+    )
+
+    output = diagnosis.model_dump()
+    assert output["uncertainties"] == [
+        "cross-source order unknown",
+        "why the required mount is unavailable is not established",
+    ]
+    assert output["recommended_next_checks"]
+    assert "root_cause" not in output
 
 
 def test_binder_flood_generator_is_deterministic_and_parseable():

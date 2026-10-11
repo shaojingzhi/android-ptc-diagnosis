@@ -45,6 +45,8 @@ class DirectDiagnosis(BaseModel):
     primary_candidate_indices: list[int] = Field(default_factory=list)
     evidence_indices: list[int] = Field(default_factory=list)
     propagation_event_indices: list[int] = Field(default_factory=list)
+    uncertainties: list[str] = Field(default_factory=list)
+    recommended_next_checks: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
 
