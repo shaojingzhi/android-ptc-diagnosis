@@ -5,9 +5,14 @@ import pytest
 
 from android_ptc_diag.backend import AdbCliBackend, AdbCliError, ReplayBackend
 from android_ptc_diag.cases import load_case
+from android_ptc_diag.clustering import cluster_events
+from android_ptc_diag.compact import build_compact_evidence
+from android_ptc_diag.primitives import get_events
 from android_ptc_diag.models import DirectDiagnosis, TriageRequest
 from android_ptc_diag.parsing import parse_logcat
+from android_ptc_diag.skills import build_evidence_view
 from scripts.generate_binder_flood_case import generate_binder_flood
+from android_ptc_diag.triage import fixed_triage
 
 
 def test_seed_cases_are_replayable():
@@ -95,6 +100,58 @@ def test_runtime_mount_case_supports_evidence_driven_diagnosis_contract():
     ]
     assert output["recommended_next_checks"]
     assert "root_cause" not in output
+
+
+def test_runtime_process_killed_deterministic_characterization():
+    case_dir = Path(__file__).parents[1] / "eval" / "cases" / "runtime_process_killed_001"
+    request, expected = load_case(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+
+    assert request.diagnosis_scope == "container_runtime_boundary"
+    assert len(events) == 29
+    assert sum(event.source == "logcat" for event in events) == 27
+    assert sum(event.source == "kmsg" for event in events) == 2
+
+    cluster_events(events)
+    compact = build_compact_evidence(events)
+    assert compact["group_count"] == 8
+    assert sorted((group["count"] for group in compact["groups"]), reverse=True)[:3] == [
+        12,
+        8,
+        4,
+    ]
+    compact_text = " ".join(group["template"] for group in compact["groups"])
+    for phrase in (
+        "memory pressure",
+        "runtime service process killed",
+        "runtime service process died",
+        "required service unavailable",
+        "DEAD_OBJECT",
+        "app-visible startup dependency unavailable",
+        "FATAL EXCEPTION",
+    ):
+        assert phrase in compact_text
+
+    evidence_view = build_evidence_view(get_events(events)["events"])
+    assert evidence_view["ordering"] == "source_local"
+    assert evidence_view["cross_source_order"] == "unknown"
+    assert [event["monotonic_seconds"] for event in evidence_view["sources"]["kmessage"]] == [
+        420.12,
+        420.13,
+    ]
+
+    result = fixed_triage(events, request)
+    top3 = result.primary_candidates[:3]
+    assert expected["primary_event_contains"] in events[top3[0].event_index].message
+    assert any(
+        expected["primary_event_contains"] in events[candidate.event_index].message
+        for candidate in top3
+    )
+    assert expected["uncertainties"] == [
+        "cross-source order unknown",
+        "why the runtime service process died is not established",
+    ]
+    assert expected["recommended_next_checks"]
 
 
 def test_binder_flood_generator_is_deterministic_and_parseable():

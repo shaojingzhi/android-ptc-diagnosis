@@ -1,0 +1,25 @@
+metadata:
+  synthetic: true
+  provenance: "hand-authored container-runtime boundary replay; not production data"
+request:
+  symptom: "com.demo.process cannot start because the runtime service process is unavailable"
+  target_package: "com.demo.process"
+  failure_timestamp: "2026-10-03T14:20:03"
+  diagnosis_scope: "container_runtime_boundary"
+expected:
+  primary_event_contains: "runtime service process died"
+  supporting_evidence_contains:
+    - "memory pressure"
+    - "runtime service process killed"
+  propagation_contains:
+    - "required service unavailable"
+    - "DEAD_OBJECT"
+    - "FATAL EXCEPTION"
+  noise_contains:
+    - "thermal sensor read timeout"
+  uncertainties:
+    - "cross-source order unknown"
+    - "why the runtime service process died is not established"
+  recommended_next_checks:
+    - "Inspect runtime service process and cgroup state"
+    - "Check runtime service readiness and required dependency state"

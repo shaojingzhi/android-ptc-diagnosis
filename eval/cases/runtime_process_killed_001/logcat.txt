@@ -1,0 +1,27 @@
+10-03 14:19:59.900  700  701 W ThermalHAL: thermal sensor read timeout
+10-03 14:20:00.100 2300 2300 E RuntimeService: runtime service process died: pid=2300
+10-03 14:20:00.200 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.210 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.220 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.230 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.240 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.250 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.260 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.270 2300 2300 E RuntimeService: required service unavailable: runtime service process missing
+10-03 14:20:00.300 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.310 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.320 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.330 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.340 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.350 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.360 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.370 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.380 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.390 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.400 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.410 2400 2410 E Binder: DEAD_OBJECT: transaction failed: runtime service unavailable
+10-03 14:20:00.500 2500 2500 E ClientRuntime: app-visible startup dependency unavailable
+10-03 14:20:00.510 2500 2500 E ClientRuntime: app-visible startup dependency unavailable
+10-03 14:20:00.520 2500 2500 E ClientRuntime: app-visible startup dependency unavailable
+10-03 14:20:00.530 2500 2500 E ClientRuntime: app-visible startup dependency unavailable
+10-03 14:20:03.000 2500 2500 E AndroidRuntime: FATAL EXCEPTION: main; required service unavailable
