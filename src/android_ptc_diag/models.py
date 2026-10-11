@@ -52,7 +52,7 @@ class DirectDiagnosis(BaseModel):
 
 
 class FollowupRequest(BaseModel):
-    uncertainty: str
+    uncertainty_index: int
     check: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     reason: str
@@ -66,6 +66,8 @@ class DiagnosisLoopDecision(BaseModel):
 class DiagnosisLoopStep(BaseModel):
     current_diagnosis: DirectDiagnosis
     uncertainties: list[str] = Field(default_factory=list)
+    uncertainty_index: int
+    bound_uncertainty_text: str
     chosen_check: str
     why_this_check: str
     check_arguments: dict[str, Any] = Field(default_factory=dict)

@@ -106,7 +106,7 @@ def test_minimal_prompt_exposes_only_bounded_api_contract():
 def test_semantic_decision_prompt_exposes_structured_followup_contract_without_tools():
     prompt = minimal_runner.SEMANTIC_DECISION_PROMPT
 
-    for field in ("diagnosis", "followup_request", "uncertainty", "check", "arguments", "reason"):
+    for field in ("diagnosis", "followup_request", "uncertainty_index", "check", "arguments", "reason"):
         assert field in prompt
     for check in (
         "inspect_process_state",
@@ -118,6 +118,7 @@ def test_semantic_decision_prompt_exposes_structured_followup_contract_without_t
     assert "never remediation" in prompt
     assert 'optional string "name"' in prompt
     assert 'integer "pid"' in prompt
+    assert '"uncertainty": string' not in prompt
 
 
 def test_model_loop_binds_only_execute_code_and_records_full_program():
@@ -176,7 +177,7 @@ def test_mocked_model_backed_semantic_loop_updates_diagnosis_without_tools():
     updated.evidence_indices = [1, 2]
     updated.uncertainties = []
     request = {
-        "uncertainty": "why the runtime service process died is not established",
+        "uncertainty_index": 0,
         "check": "inspect_process_state",
         "arguments": {"name": "runtime_service"},
         "reason": "Check whether the runtime process is dead.",
@@ -213,6 +214,7 @@ def test_mocked_model_backed_semantic_loop_updates_diagnosis_without_tools():
     assert provider.turns[1]["returned_evidence"]["state"] == "dead"
     assert provider.turns[1]["stop_reason"] == "model chose to stop"
     assert provider.turns[0]["input_tokens"] == 31
+    assert provider.turns[0]["bound_uncertainty_text"] == initial.uncertainties[0]
     assert provider.turns[1]["output_tokens"] == 21
     assert "followup_request" not in result.current_diagnosis.model_dump()
 

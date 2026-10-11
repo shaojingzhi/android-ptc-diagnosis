@@ -36,8 +36,10 @@ def _validate_followup_request(
     diagnosis: DirectDiagnosis,
 ) -> str | None:
     """Return a controller rejection reason, without interpreting evidence."""
-    if request.uncertainty not in diagnosis.uncertainties:
-        return "check is not tied to a current uncertainty"
+    if not isinstance(request.uncertainty_index, int):
+        return "uncertainty_index must be an integer"
+    if request.uncertainty_index < 0 or request.uncertainty_index >= len(diagnosis.uncertainties):
+        return "uncertainty_index is out of range"
     if request.check not in _READ_ONLY_CHECKS:
         return f"unsupported read-only check: {request.check}"
     if not isinstance(request.arguments, dict):
@@ -49,6 +51,14 @@ def _validate_followup_request(
     except TypeError as exc:
         return f"invalid check arguments: {exc}"
     return None
+
+
+def _bound_uncertainty_text(request: Any, diagnosis: DirectDiagnosis) -> str | None:
+    if not isinstance(request.uncertainty_index, int):
+        return None
+    if request.uncertainty_index < 0 or request.uncertainty_index >= len(diagnosis.uncertainties):
+        return None
+    return diagnosis.uncertainties[request.uncertainty_index]
 
 
 def run_semantic_diagnosis_loop(
@@ -90,11 +100,14 @@ def run_semantic_diagnosis_loop(
         seen_results.add(result_key)
 
         prior_diagnosis = state.current_diagnosis
+        bound_uncertainty_text = _bound_uncertainty_text(request, prior_diagnosis)
         next_decision = decision_provider(prior_diagnosis, returned_evidence)
         updated_diagnosis = next_decision.diagnosis.model_copy(deep=True)
         step = DiagnosisLoopStep(
             current_diagnosis=prior_diagnosis,
             uncertainties=list(prior_diagnosis.uncertainties),
+            uncertainty_index=request.uncertainty_index,
+            bound_uncertainty_text=bound_uncertainty_text or "",
             chosen_check=request.check,
             why_this_check=request.reason,
             check_arguments=dict(request.arguments),
@@ -144,6 +157,7 @@ def run_read_only_diagnosis_loop(
         if uncertainty not in state.uncertainties:
             state.stop_reason = "check is not tied to a current uncertainty"
             break
+        uncertainty_index = state.uncertainties.index(uncertainty)
         if not isinstance(arguments, dict):
             state.stop_reason = "check arguments must be an object"
             break
@@ -165,6 +179,8 @@ def run_read_only_diagnosis_loop(
         step = DiagnosisLoopStep(
             current_diagnosis=state.current_diagnosis,
             uncertainties=list(state.uncertainties),
+            uncertainty_index=uncertainty_index,
+            bound_uncertainty_text=uncertainty,
             chosen_check=chosen_check,
             why_this_check=why_this_check,
             check_arguments=arguments,

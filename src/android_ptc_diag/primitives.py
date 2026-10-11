@@ -191,33 +191,32 @@ def inspect_process_state(
     entries = runtime_state.get("processes")
     if not isinstance(entries, dict):
         raise ValueError("invalid process state collection")
-    if name is not None and name not in entries:
-        raise ValueError(f"unknown process name: {name}")
-
-    if name is not None:
+    if pid is None:
+        if name not in entries:
+            raise ValueError(f"unknown process name: {name}")
         value = entries[name]
         if not isinstance(value, dict):
             raise ValueError(f"invalid process state: {name}")
-        if pid is not None and value.get("pid") != pid:
-            raise ValueError(
-                f"process locator conflict: {name} has pid {value.get('pid')}, not {pid}"
-            )
         return {"process": name, **value, "read_only": True}
 
     matches = [
         (entry_name, value)
         for entry_name, value in entries.items()
-        if isinstance(value, dict) and (pid is None or value.get("pid") == pid)
+        if isinstance(value, dict) and value.get("pid") == pid
     ]
-    if pid is not None and len(matches) == 0:
+    if len(matches) == 0:
         raise ValueError(f"unknown process pid: {pid}")
-    if pid is not None and len(matches) > 1:
+    if len(matches) > 1:
         raise ValueError(f"non-unique process pid: {pid}")
 
     resolved_name = matches[0][0]
     value = entries[resolved_name]
-    if not isinstance(value, dict):
-        raise ValueError(f"invalid process state: {resolved_name}")
+    if name is not None and name in entries and name != resolved_name:
+        named_value = entries[name]
+        named_pid = named_value.get("pid") if isinstance(named_value, dict) else None
+        raise ValueError(
+            f"process locator conflict: {name} has pid {named_pid}, not {pid}"
+        )
     return {"process": resolved_name, **value, "read_only": True}
 
 

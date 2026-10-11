@@ -96,7 +96,7 @@ Return exactly one JSON object matching this contract:
     "notes": [string]
   },
   "followup_request": null or {
-    "uncertainty": string,
+    "uncertainty_index": int (0-based index into diagnosis.uncertainties),
     "check": "inspect_process_state" | "inspect_cgroup_state" | "inspect_service_state" | "inspect_mount_state",
     "arguments": object; inspect_process_state accepts optional string "name" and
       integer "pid" (provide at least one, or both when they identify the same process),
@@ -152,6 +152,12 @@ class ModelDecisionProvider:
                 "followup_request": (
                     decision.followup_request.model_dump()
                     if decision.followup_request
+                    else None
+                ),
+                "bound_uncertainty_text": (
+                    diagnosis.uncertainties[decision.followup_request.uncertainty_index]
+                    if decision.followup_request
+                    and 0 <= decision.followup_request.uncertainty_index < len(diagnosis.uncertainties)
                     else None
                 ),
                 "input_tokens": input_tokens,

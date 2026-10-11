@@ -43,10 +43,10 @@ def _provider_script(decisions):
     return provider
 
 
-def _request(check: str, uncertainty: str) -> FollowupRequest:
+def _request(check: str, uncertainty_index: int) -> FollowupRequest:
     arguments = {"path": "/container/runtime"} if check == "inspect_mount_state" else {"name": "runtime_service"}
     return FollowupRequest(
-        uncertainty=uncertainty,
+        uncertainty_index=uncertainty_index,
         check=check,
         arguments=arguments,
         reason=f"Use {check} to narrow the current evidence gap.",
@@ -121,7 +121,7 @@ def test_one_step_service_check_narrows_unready_uncertainty():
                     diagnosis=initial,
                     followup_request=_request(
                         "inspect_service_state",
-                        "why the runtime service failed to become ready is not established",
+                        1,
                     ),
                 ),
                 DiagnosisLoopDecision(diagnosis=updated),
@@ -159,14 +159,14 @@ def test_two_step_process_then_service_path_preserves_unknown_cause():
                     diagnosis=initial,
                     followup_request=_request(
                         "inspect_process_state",
-                        "why the runtime service failed to become ready is not established",
+                        1,
                     ),
                 ),
                 DiagnosisLoopDecision(
                     diagnosis=narrowed,
                     followup_request=_request(
                         "inspect_service_state",
-                        "why the runtime service failed to become ready is not established",
+                        1,
                     ),
                 ),
                 DiagnosisLoopDecision(diagnosis=final),

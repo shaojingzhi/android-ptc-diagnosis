@@ -55,13 +55,35 @@ def test_process_state_supports_name_pid_and_consistent_pair_locators():
 
     by_pid = inspect_process_state(state, pid=2300)
     by_both = inspect_process_state(state, name="runtime_service", pid=2300)
+    by_pid_with_unknown_display_name = inspect_process_state(
+        state, name="RuntimeService", pid=2300
+    )
 
     assert by_pid == by_both
+    assert by_pid_with_unknown_display_name == by_pid
     assert by_pid["process"] == "runtime_service"
     assert by_pid["read_only"] is True
 
-    with pytest.raises(ValueError, match="process locator conflict"):
+    with pytest.raises(ValueError, match="unknown process pid"):
         inspect_process_state(state, name="runtime_service", pid=9999)
+    state_with_second_process = {
+        **state,
+        "processes": {
+            **state["processes"],
+            "other_process": {"pid": 9999, "state": "running"},
+        },
+    }
+    with pytest.raises(ValueError, match="process locator conflict"):
+        inspect_process_state(state_with_second_process, name="other_process", pid=2300)
+    state_with_duplicate_pid = {
+        **state,
+        "processes": {
+            **state["processes"],
+            "duplicate_process": {"pid": 2300, "state": "running"},
+        },
+    }
+    with pytest.raises(ValueError, match="non-unique process pid"):
+        inspect_process_state(state_with_duplicate_pid, pid=2300)
     with pytest.raises(ValueError, match="requires name or pid"):
         inspect_process_state(state)
     with pytest.raises(ValueError, match="unknown process pid"):
@@ -71,7 +93,7 @@ def test_process_state_supports_name_pid_and_consistent_pair_locators():
 def test_semantic_controller_accepts_pid_process_locator():
     state = load_runtime_state(CASE_DIR)
     request = FollowupRequest(
-        uncertainty="why the runtime service process died is not established",
+        uncertainty_index=0,
         check="inspect_process_state",
         arguments={"pid": 2300},
         reason="Check the process identified by the observed pid.",
@@ -175,9 +197,9 @@ def _provider_script(decisions):
     return provider
 
 
-def _request(check, uncertainty="why the runtime service process died is not established"):
+def _request(check, uncertainty_index=0):
     return FollowupRequest(
-        uncertainty=uncertainty,
+        uncertainty_index=uncertainty_index,
         check=check,
         arguments={"name": "runtime_service"},
         reason=f"Inspect {check} to narrow the uncertainty.",
@@ -201,8 +223,43 @@ def test_semantic_loop_passes_evidence_to_provider_and_updates_diagnosis():
     assert provider.calls[1][1]["state"] == "dead"
     assert result.current_diagnosis.evidence_indices == [27, 28, 29]
     assert result.current_diagnosis.uncertainties == ["cross-source order unknown"]
+    assert result.steps[0].uncertainty_index == 0
+    assert result.steps[0].bound_uncertainty_text == _diagnosis().uncertainties[0]
     assert result.stop_reason == "model chose to stop"
     assert "followup_request" not in result.current_diagnosis.model_dump()
+
+
+def test_uncertainty_rephrase_keeps_index_binding_and_records_bound_text():
+    initial = _diagnosis()
+    rephrased = initial.model_copy(deep=True)
+    rephrased.uncertainties = [
+        "the runtime process termination explanation remains unknown",
+        "cross-source order unknown",
+    ]
+    final = rephrased.model_copy(deep=True)
+    final.uncertainties = ["cross-source order unknown"]
+    result = run_semantic_diagnosis_loop(
+        initial,
+        load_runtime_state(CASE_DIR),
+        _provider_script(
+            [
+                DiagnosisLoopDecision(
+                    diagnosis=initial,
+                    followup_request=_request("inspect_process_state", 0),
+                ),
+                DiagnosisLoopDecision(
+                    diagnosis=rephrased,
+                    followup_request=_request("inspect_cgroup_state", 0),
+                ),
+                DiagnosisLoopDecision(diagnosis=final),
+            ]
+        ),
+    )
+
+    assert len(result.steps) == 2
+    assert [step.uncertainty_index for step in result.steps] == [0, 0]
+    assert result.steps[0].bound_uncertainty_text == initial.uncertainties[0]
+    assert result.steps[1].bound_uncertainty_text == rephrased.uncertainties[0]
 
 
 def test_semantic_loop_allows_model_to_stop_before_any_check():
@@ -223,13 +280,11 @@ def test_semantic_loop_stops_at_followup_budget():
             DiagnosisLoopDecision(diagnosis=_diagnosis(), followup_request=_request("inspect_process_state")),
             DiagnosisLoopDecision(
                 diagnosis=_diagnosis(),
-                followup_request=_request(
-                    "inspect_cgroup_state", "cross-source order unknown"
-                ),
+                followup_request=_request("inspect_cgroup_state", 1),
             ),
             DiagnosisLoopDecision(
                 diagnosis=_diagnosis(),
-                followup_request=_request("inspect_service_state", "cross-source order unknown"),
+                followup_request=_request("inspect_service_state", 1),
             ),
         ]
     )
@@ -246,7 +301,12 @@ def test_semantic_loop_rejects_invalid_uncertainty_and_write_like_check():
         [
             DiagnosisLoopDecision(
                 diagnosis=_diagnosis(),
-                followup_request=_request("inspect_process_state", "not a current uncertainty"),
+                followup_request=FollowupRequest(
+                    uncertainty_index=99,
+                    check="inspect_process_state",
+                    arguments={"name": "runtime_service"},
+                    reason="Use an out-of-range uncertainty.",
+                ),
             )
         ]
     )
@@ -254,14 +314,14 @@ def test_semantic_loop_rejects_invalid_uncertainty_and_write_like_check():
         _diagnosis(), load_runtime_state(CASE_DIR), invalid_uncertainty
     )
     assert result.steps == []
-    assert result.stop_reason == "check is not tied to a current uncertainty"
+    assert result.stop_reason == "uncertainty_index is out of range"
 
     write_like = _provider_script(
         [
             DiagnosisLoopDecision(
                 diagnosis=_diagnosis(),
                 followup_request=FollowupRequest(
-                    uncertainty="why the runtime service process died is not established",
+                    uncertainty_index=0,
                     check="restart_service",
                     arguments={"name": "runtime_service"},
                     reason="Try to restore service availability.",
@@ -278,7 +338,7 @@ def test_semantic_loop_rejects_invalid_uncertainty_and_write_like_check():
             DiagnosisLoopDecision(
                 diagnosis=_diagnosis(),
                 followup_request=FollowupRequest(
-                    uncertainty="why the runtime service process died is not established",
+                    uncertainty_index=0,
                     check="inspect_process_state",
                     arguments={"name": "runtime_service", "write": True},
                     reason="Use an unsupported argument.",
