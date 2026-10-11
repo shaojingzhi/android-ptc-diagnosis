@@ -98,7 +98,8 @@ Return exactly one JSON object matching this contract:
   "followup_request": null or {
     "uncertainty": string,
     "check": "inspect_process_state" | "inspect_cgroup_state" | "inspect_service_state" | "inspect_mount_state",
-    "arguments": object,
+    "arguments": object; inspect_process_state accepts optional string "name" and
+      integer "pid" (provide at least one, or both when they identify the same process),
     "reason": string
   }
 }

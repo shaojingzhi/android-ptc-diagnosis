@@ -116,6 +116,8 @@ def test_semantic_decision_prompt_exposes_structured_followup_contract_without_t
     ):
         assert check in prompt
     assert "never remediation" in prompt
+    assert 'optional string "name"' in prompt
+    assert 'integer "pid"' in prompt
 
 
 def test_model_loop_binds_only_execute_code_and_records_full_program():

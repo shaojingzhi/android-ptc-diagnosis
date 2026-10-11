@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from android_ptc_diag.cases import load_runtime_state
 from android_ptc_diag.diagnostic_loop import (
     run_read_only_diagnosis_loop,
@@ -46,6 +48,50 @@ def test_runtime_state_primitives_are_read_only_and_fixture_backed():
     assert service["state"] == "unavailable"
     assert mount["available"] is True
     assert all(result["read_only"] is True for result in (process, cgroup, service, mount))
+
+
+def test_process_state_supports_name_pid_and_consistent_pair_locators():
+    state = load_runtime_state(CASE_DIR)
+
+    by_pid = inspect_process_state(state, pid=2300)
+    by_both = inspect_process_state(state, name="runtime_service", pid=2300)
+
+    assert by_pid == by_both
+    assert by_pid["process"] == "runtime_service"
+    assert by_pid["read_only"] is True
+
+    with pytest.raises(ValueError, match="process locator conflict"):
+        inspect_process_state(state, name="runtime_service", pid=9999)
+    with pytest.raises(ValueError, match="requires name or pid"):
+        inspect_process_state(state)
+    with pytest.raises(ValueError, match="unknown process pid"):
+        inspect_process_state(state, pid=9999)
+
+
+def test_semantic_controller_accepts_pid_process_locator():
+    state = load_runtime_state(CASE_DIR)
+    request = FollowupRequest(
+        uncertainty="why the runtime service process died is not established",
+        check="inspect_process_state",
+        arguments={"pid": 2300},
+        reason="Check the process identified by the observed pid.",
+    )
+    updated = _diagnosis().model_copy(deep=True)
+    updated.uncertainties = ["cross-source order unknown"]
+    result = run_semantic_diagnosis_loop(
+        _diagnosis(),
+        state,
+        _provider_script(
+            [
+                DiagnosisLoopDecision(diagnosis=_diagnosis(), followup_request=request),
+                DiagnosisLoopDecision(diagnosis=updated),
+            ]
+        ),
+    )
+
+    assert len(result.steps) == 1
+    assert result.steps[0].check_arguments == {"pid": 2300}
+    assert result.steps[0].returned_evidence["process"] == "runtime_service"
 
 
 def test_bounded_loop_records_two_read_only_checks_and_stops():

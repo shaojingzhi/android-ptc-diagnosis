@@ -177,9 +177,48 @@ def _inspect_runtime_entry(
     return {label: key, **value, "read_only": True}
 
 
-def inspect_process_state(runtime_state: dict[str, Any], *, name: str) -> dict[str, Any]:
-    """Read one deterministic replay process record without changing state."""
-    return _inspect_runtime_entry(runtime_state, "processes", name, "process")
+def inspect_process_state(
+    runtime_state: dict[str, Any], *, name: str | None = None, pid: int | None = None
+) -> dict[str, Any]:
+    """Read one process by name, pid, or a consistent pair of locators."""
+    if name is None and pid is None:
+        raise ValueError("process locator requires name or pid")
+    if name is not None and not isinstance(name, str):
+        raise ValueError("process name must be a string")
+    if pid is not None and (not isinstance(pid, int) or isinstance(pid, bool)):
+        raise ValueError("process pid must be an integer")
+
+    entries = runtime_state.get("processes")
+    if not isinstance(entries, dict):
+        raise ValueError("invalid process state collection")
+    if name is not None and name not in entries:
+        raise ValueError(f"unknown process name: {name}")
+
+    if name is not None:
+        value = entries[name]
+        if not isinstance(value, dict):
+            raise ValueError(f"invalid process state: {name}")
+        if pid is not None and value.get("pid") != pid:
+            raise ValueError(
+                f"process locator conflict: {name} has pid {value.get('pid')}, not {pid}"
+            )
+        return {"process": name, **value, "read_only": True}
+
+    matches = [
+        (entry_name, value)
+        for entry_name, value in entries.items()
+        if isinstance(value, dict) and (pid is None or value.get("pid") == pid)
+    ]
+    if pid is not None and len(matches) == 0:
+        raise ValueError(f"unknown process pid: {pid}")
+    if pid is not None and len(matches) > 1:
+        raise ValueError(f"non-unique process pid: {pid}")
+
+    resolved_name = matches[0][0]
+    value = entries[resolved_name]
+    if not isinstance(value, dict):
+        raise ValueError(f"invalid process state: {resolved_name}")
+    return {"process": resolved_name, **value, "read_only": True}
 
 
 def inspect_cgroup_state(runtime_state: dict[str, Any], *, name: str) -> dict[str, Any]:
