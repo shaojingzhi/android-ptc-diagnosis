@@ -55,6 +55,7 @@ def _build_skill_compact_task(request: Any, events: list[LogEvent]) -> str:
             "failure_timestamp": request.failure_timestamp.isoformat()
             if request.failure_timestamp
             else None,
+            "diagnosis_scope": request.diagnosis_scope,
             "raw_event_count": len(events),
             "compact_group_count": compact["group_count"],
             "compact_evidence": compact,
@@ -66,6 +67,8 @@ def _build_skill_compact_task(request: Any, events: list[LogEvent]) -> str:
                 "primary_candidate_indices": "list[int]",
                 "evidence_indices": "list[int]",
                 "propagation_event_indices": "list[int]",
+                "uncertainties": "list[str]",
+                "recommended_next_checks": "list[str]",
                 "notes": "list[str]",
             },
         },

@@ -43,7 +43,14 @@ groups, combines the APIs below, keeps intermediate records inside the sandbox, 
 prints only compact evidence needed for your final judgment. You must execute code at
 least once. Do not read files, source code, documentation, environment variables, the
 snapshot, or the primitive trace. Compact evidence supports primary-failure and
-cascading-error candidates; it does not prove strict causality.
+cascading-error candidates; it does not prove a root cause or strict causality.
+
+Work within the provided diagnosis_scope. A primary candidate is the failure most
+worth investigating within that scope. Supporting evidence may come from a lower-level
+source. If the evidence is insufficient, express the unknown in uncertainties.
+recommended_next_checks must contain diagnostic actions only (for example checking
+mount, process, service, or runtime state), never automatic remediation. When
+cross_source_order="unknown", do not infer strict cross-source temporal causality.
 
 Reusable deterministic evidence Skill:
 from tools.android_ptc_diag.skills import inspect_group_evidence
@@ -68,7 +75,9 @@ from tools.diagnostic import get_events, filter_by_time, filter_by_level, filter
 - group_by_pid(indices=None) -> {groups, count}
 
 After reading execute_code results, return exactly one JSON object with:
-primary_candidate_indices, evidence_indices, propagation_event_indices, and notes.
+primary_candidate_indices, evidence_indices, propagation_event_indices, uncertainties,
+recommended_next_checks, and notes. Do not add a separate proven-cause field or claim
+a proven root cause.
 All three index fields are integer lists referring to the original normalized events.
 """
 

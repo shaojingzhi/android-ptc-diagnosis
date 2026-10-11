@@ -25,6 +25,7 @@ class TriageRequest(BaseModel):
     symptom: str
     target_package: str | None = None
     failure_timestamp: datetime | None = None
+    diagnosis_scope: str | None = None
 
 
 class FailureCandidate(BaseModel):

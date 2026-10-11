@@ -5,6 +5,7 @@ request:
   symptom: "com.demo.mount cannot start because a required container mount is unavailable"
   target_package: "com.demo.mount"
   failure_timestamp: "2026-10-03T13:15:03"
+  diagnosis_scope: "container_runtime_boundary"
 expected:
   primary_event_contains: "required mount /vendor/firmware unavailable"
   supporting_evidence_contains:

@@ -12,6 +12,7 @@ from runtime.ptc.skill_compact_runner import _build_skill_compact_task
 
 
 CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "binder_flood_001"
+RUNTIME_CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "runtime_mount_failure_001"
 
 
 class _Schema:
@@ -73,6 +74,10 @@ def test_minimal_prompt_exposes_only_bounded_api_contract():
     assert "build_timeline" not in prompt
     assert "evidence_view" in prompt
     assert "cross_source_order=\"unknown\"" in prompt
+    assert "uncertainties" in prompt
+    assert "recommended_next_checks" in prompt
+    assert "proven root cause" in prompt
+    assert "root_cause" not in prompt
     assert "Do not read files" in prompt
     assert "diagnose_root_cause" not in prompt
     source = inspect.getsource(minimal_runner)
@@ -161,3 +166,30 @@ def test_fixed_context_measurement_is_well_below_deepagents_baseline():
     assert "duplicate tool description" not in json.dumps(
         minimal_runner._tool_schema(_ExecuteTool())
     )
+
+
+def test_minimal_task_wires_diagnosis_scope_and_output_contract():
+    request, _ = load_case(RUNTIME_CASE_DIR)
+    events = ReplayBackend(RUNTIME_CASE_DIR).collect_events(request)
+    task = json.loads(_build_skill_compact_task(request, events))
+
+    assert task["diagnosis_scope"] == "container_runtime_boundary"
+    assert set(task["output_schema"]) == {
+        "primary_candidate_indices",
+        "evidence_indices",
+        "propagation_event_indices",
+        "uncertainties",
+        "recommended_next_checks",
+        "notes",
+    }
+    assert "root_cause" not in task["output_schema"]
+
+
+def test_older_case_without_scope_remains_compatible():
+    request, _ = load_case(CASE_DIR)
+    events = ReplayBackend(CASE_DIR).collect_events(request)
+    task = json.loads(_build_skill_compact_task(request, events))
+
+    assert request.diagnosis_scope is None
+    assert task["diagnosis_scope"] is None
+    assert "root_cause" not in task["output_schema"]
