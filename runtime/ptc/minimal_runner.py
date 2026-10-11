@@ -19,9 +19,11 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from android_ptc_diag.backend import ReplayBackend  # noqa: E402
-from android_ptc_diag.cases import load_case  # noqa: E402
+from android_ptc_diag.cases import load_case, load_runtime_state  # noqa: E402
 from android_ptc_diag.clustering import cluster_events  # noqa: E402
-from android_ptc_diag.execution import _usage  # noqa: E402
+from android_ptc_diag.diagnostic_loop import run_semantic_diagnosis_loop  # noqa: E402
+from android_ptc_diag.execution import _content, _usage, _validate_diagnosis_indices  # noqa: E402
+from android_ptc_diag.models import DiagnosisLoopDecision, DirectDiagnosis  # noqa: E402
 from runtime.ptc import runner  # noqa: E402
 from runtime.ptc.skill_compact_runner import _build_skill_compact_task  # noqa: E402
 
@@ -81,6 +83,85 @@ recommended_next_checks, and notes. Do not add a separate proven-cause field or 
 a proven root cause.
 All three index fields are integer lists referring to the original normalized events.
 """
+
+SEMANTIC_DECISION_PROMPT = """You are the semantic diagnosis reviewer after an initial Minimal PTC diagnosis.
+Return exactly one JSON object matching this contract:
+{
+  "diagnosis": {
+    "primary_candidate_indices": [int],
+    "evidence_indices": [int],
+    "propagation_event_indices": [int],
+    "uncertainties": [string],
+    "recommended_next_checks": [string],
+    "notes": [string]
+  },
+  "followup_request": null or {
+    "uncertainty": string,
+    "check": "inspect_process_state" | "inspect_cgroup_state" | "inspect_service_state" | "inspect_mount_state",
+    "arguments": object,
+    "reason": string
+  }
+}
+
+Update candidates and uncertainties from returned evidence. Choose null when the
+evidence is sufficient. Follow-ups are read-only diagnostic checks, never remediation.
+Do not claim a proven root cause. The controller validates allowlist, arguments,
+budget, and duplicate evidence.
+"""
+
+
+class ModelDecisionProvider:
+    """Synchronous model-backed provider with per-turn semantic trace data."""
+
+    def __init__(self, model: Any, *, event_count: int):
+        self.model = model
+        self.event_count = event_count
+        self.turns: list[dict[str, Any]] = []
+
+    def __call__(
+        self,
+        diagnosis: DirectDiagnosis,
+        returned_evidence: dict[str, Any] | None,
+    ) -> DiagnosisLoopDecision:
+        payload = {
+            "diagnosis_before": diagnosis.model_dump(),
+            "returned_evidence": returned_evidence,
+            "instructions": "Update the diagnosis and optionally request one bounded read-only check.",
+        }
+        messages = [
+            {"role": "system", "content": SEMANTIC_DECISION_PROMPT},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+        ]
+        started = time.perf_counter()
+        response = self.model.invoke(messages)
+        input_tokens, output_tokens = _usage(response)
+        response_text = _content(response).strip()
+        if response_text.startswith("```"):
+            response_text = response_text.strip("`").removeprefix("json").strip()
+        decision = DiagnosisLoopDecision.model_validate(json.loads(response_text))
+        _validate_diagnosis_indices(decision.diagnosis, self.event_count)
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        self.turns.append(
+            {
+                "turn": len(self.turns) + 1,
+                "diagnosis_before": diagnosis.model_dump(),
+                "returned_evidence": returned_evidence,
+                "decision": decision.model_dump(),
+                "diagnosis_after": decision.diagnosis.model_dump(),
+                "followup_request": (
+                    decision.followup_request.model_dump()
+                    if decision.followup_request
+                    else None
+                ),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "latency_ms": elapsed_ms,
+                "stop_reason": "model chose to stop"
+                if decision.followup_request is None
+                else None,
+            }
+        )
+        return decision
 
 
 def _estimate_tokens(value: str) -> int:
@@ -326,6 +407,8 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         "generated_programs": [],
         "primitive_calls": [],
         "turns": [],
+        "semantic_loop_turns": [],
+        "semantic_loop": None,
         "sandbox_startup_ms": None,
         "execution_ms": None,
         "errors": [],
@@ -376,9 +459,27 @@ async def run_case(case_dir: Path, trace_file: Path) -> dict[str, Any]:
         if primitive_error:
             trace["errors"].append(primitive_error)
         diagnosis, diagnosis_error = runner._diagnosis(loop["messages"], len(events))
-        trace["final"] = diagnosis
         if diagnosis_error:
             trace["errors"].append(diagnosis_error)
+        if diagnosis:
+            provider = ModelDecisionProvider(model, event_count=len(events))
+            semantic_state = run_semantic_diagnosis_loop(
+                DirectDiagnosis.model_validate(diagnosis),
+                load_runtime_state(case_dir),
+                provider,
+            )
+            trace["semantic_loop_turns"] = provider.turns
+            trace["semantic_loop"] = semantic_state.model_dump()
+            if provider.turns and semantic_state.stop_reason != "model chose to stop":
+                provider.turns[-1]["stop_reason"] = semantic_state.stop_reason
+            diagnosis = semantic_state.current_diagnosis.model_dump()
+            trace["semantic_input_tokens"] = sum(
+                turn["input_tokens"] or 0 for turn in provider.turns
+            )
+            trace["semantic_output_tokens"] = sum(
+                turn["output_tokens"] or 0 for turn in provider.turns
+            )
+        trace["final"] = diagnosis
         if diagnosis:
             candidates = diagnosis["primary_candidate_indices"]
             messages = [events[index].message for index in candidates]

@@ -7,12 +7,16 @@ from types import SimpleNamespace
 from android_ptc_diag.backend import ReplayBackend
 from android_ptc_diag.cases import load_case
 from android_ptc_diag.clustering import cluster_events
+from android_ptc_diag.cases import load_runtime_state
+from android_ptc_diag.diagnostic_loop import run_semantic_diagnosis_loop
+from android_ptc_diag.models import DirectDiagnosis
 from runtime.ptc import minimal_runner
 from runtime.ptc.skill_compact_runner import _build_skill_compact_task
 
 
 CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "binder_flood_001"
 RUNTIME_CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "runtime_mount_failure_001"
+PROCESS_CASE_DIR = Path(__file__).parents[1] / "eval" / "cases" / "runtime_process_killed_001"
 
 
 class _Schema:
@@ -53,6 +57,16 @@ class _Model:
         return self.responses.pop(0)
 
 
+class _DecisionModel:
+    def __init__(self, responses):
+        self.responses = iter(responses)
+        self.messages = []
+
+    def invoke(self, messages):
+        self.messages.append(messages)
+        return next(self.responses)
+
+
 def _response(content, tool_calls, input_tokens, output_tokens):
     return SimpleNamespace(
         type="ai",
@@ -87,6 +101,21 @@ def test_minimal_prompt_exposes_only_bounded_api_contract():
     assert "PTCAgent" not in source
     assert "from deepagents" not in source
     assert "create_deep_agent" not in source
+
+
+def test_semantic_decision_prompt_exposes_structured_followup_contract_without_tools():
+    prompt = minimal_runner.SEMANTIC_DECISION_PROMPT
+
+    for field in ("diagnosis", "followup_request", "uncertainty", "check", "arguments", "reason"):
+        assert field in prompt
+    for check in (
+        "inspect_process_state",
+        "inspect_cgroup_state",
+        "inspect_service_state",
+        "inspect_mount_state",
+    ):
+        assert check in prompt
+    assert "never remediation" in prompt
 
 
 def test_model_loop_binds_only_execute_code_and_records_full_program():
@@ -133,6 +162,57 @@ def test_model_loop_binds_only_execute_code_and_records_full_program():
     ]
     assert result["execute_code_results"][0]["success"] is True
     assert result["errors"] == []
+
+
+def test_mocked_model_backed_semantic_loop_updates_diagnosis_without_tools():
+    initial = DirectDiagnosis(
+        primary_candidate_indices=[1],
+        evidence_indices=[1],
+        uncertainties=["why the runtime service process died is not established"],
+    )
+    updated = initial.model_copy(deep=True)
+    updated.evidence_indices = [1, 2]
+    updated.uncertainties = []
+    request = {
+        "uncertainty": "why the runtime service process died is not established",
+        "check": "inspect_process_state",
+        "arguments": {"name": "runtime_service"},
+        "reason": "Check whether the runtime process is dead.",
+    }
+    model = _DecisionModel(
+        [
+            _response(
+                json.dumps({"diagnosis": initial.model_dump(), "followup_request": request}),
+                [],
+                31,
+                17,
+            ),
+            _response(
+                json.dumps({"diagnosis": updated.model_dump(), "followup_request": None}),
+                [],
+                43,
+                21,
+            ),
+        ]
+    )
+    provider = minimal_runner.ModelDecisionProvider(model, event_count=3)
+
+    result = run_semantic_diagnosis_loop(
+        initial,
+        load_runtime_state(PROCESS_CASE_DIR),
+        provider,
+    )
+
+    assert len(model.messages) == 2
+    assert result.current_diagnosis.evidence_indices == [1, 2]
+    assert result.current_diagnosis.uncertainties == []
+    assert result.stop_reason == "model chose to stop"
+    assert len(provider.turns) == 2
+    assert provider.turns[1]["returned_evidence"]["state"] == "dead"
+    assert provider.turns[1]["stop_reason"] == "model chose to stop"
+    assert provider.turns[0]["input_tokens"] == 31
+    assert provider.turns[1]["output_tokens"] == 21
+    assert "followup_request" not in result.current_diagnosis.model_dump()
 
 
 def test_model_turn_cap_does_not_execute_an_unreadable_last_result():
