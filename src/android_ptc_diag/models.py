@@ -51,6 +51,18 @@ class DirectDiagnosis(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class FollowupRequest(BaseModel):
+    uncertainty: str
+    check: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    reason: str
+
+
+class DiagnosisLoopDecision(BaseModel):
+    diagnosis: DirectDiagnosis
+    followup_request: FollowupRequest | None = None
+
+
 class DiagnosisLoopStep(BaseModel):
     current_diagnosis: DirectDiagnosis
     uncertainties: list[str] = Field(default_factory=list)

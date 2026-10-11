@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import json
+import inspect
 from typing import Any, Callable
 
-from .models import DiagnosisLoopState, DiagnosisLoopStep, DirectDiagnosis
+from .models import (
+    DiagnosisLoopDecision,
+    DiagnosisLoopState,
+    DiagnosisLoopStep,
+    DirectDiagnosis,
+)
 from .primitives import (
     inspect_cgroup_state,
     inspect_mount_state,
@@ -21,6 +27,94 @@ _READ_ONLY_CHECKS: dict[str, Callable[..., dict[str, Any]]] = {
     "inspect_service_state": inspect_service_state,
     "inspect_mount_state": inspect_mount_state,
 }
+
+DecisionProvider = Callable[[DirectDiagnosis, dict[str, Any] | None], DiagnosisLoopDecision]
+
+
+def _validate_followup_request(
+    request: Any,
+    diagnosis: DirectDiagnosis,
+) -> str | None:
+    """Return a controller rejection reason, without interpreting evidence."""
+    if request.uncertainty not in diagnosis.uncertainties:
+        return "check is not tied to a current uncertainty"
+    if request.check not in _READ_ONLY_CHECKS:
+        return f"unsupported read-only check: {request.check}"
+    if not isinstance(request.arguments, dict):
+        return "check arguments must be an object"
+    try:
+        inspect.signature(_READ_ONLY_CHECKS[request.check]).bind(
+            {}, **request.arguments
+        )
+    except TypeError as exc:
+        return f"invalid check arguments: {exc}"
+    return None
+
+
+def run_semantic_diagnosis_loop(
+    diagnosis: DirectDiagnosis,
+    runtime_state: dict[str, Any],
+    decision_provider: DecisionProvider,
+) -> DiagnosisLoopState:
+    """Let a decision provider request at most two validated read-only checks."""
+    state = DiagnosisLoopState(
+        current_diagnosis=diagnosis.model_copy(deep=True),
+        uncertainties=list(diagnosis.uncertainties),
+    )
+    seen_results: set[str] = set()
+    decision = decision_provider(state.current_diagnosis, None)
+    state.current_diagnosis = decision.diagnosis.model_copy(deep=True)
+    state.uncertainties = list(state.current_diagnosis.uncertainties)
+
+    while decision.followup_request is not None:
+        request = decision.followup_request
+        if len(state.steps) >= MAX_FOLLOWUP_CHECKS:
+            state.stop_reason = "maximum follow-up checks reached"
+            break
+        rejection = _validate_followup_request(request, state.current_diagnosis)
+        if rejection is not None:
+            state.stop_reason = rejection
+            break
+
+        try:
+            returned_evidence = _READ_ONLY_CHECKS[request.check](
+                runtime_state, **request.arguments
+            )
+        except Exception as exc:  # noqa: BLE001 - evidence is returned to the provider
+            returned_evidence = {"error": str(exc), "read_only": True}
+
+        result_key = json.dumps(returned_evidence, sort_keys=True, ensure_ascii=False)
+        if result_key in seen_results:
+            state.stop_reason = "no new information"
+            break
+        seen_results.add(result_key)
+
+        prior_diagnosis = state.current_diagnosis
+        next_decision = decision_provider(prior_diagnosis, returned_evidence)
+        updated_diagnosis = next_decision.diagnosis.model_copy(deep=True)
+        step = DiagnosisLoopStep(
+            current_diagnosis=prior_diagnosis,
+            uncertainties=list(prior_diagnosis.uncertainties),
+            chosen_check=request.check,
+            why_this_check=request.reason,
+            check_arguments=dict(request.arguments),
+            returned_evidence=returned_evidence,
+            updated_diagnosis=updated_diagnosis,
+            stop_reason="model chose to stop"
+            if next_decision.followup_request is None
+            else None,
+        )
+        state.steps.append(step)
+        state.current_diagnosis = updated_diagnosis
+        state.uncertainties = list(updated_diagnosis.uncertainties)
+        decision = next_decision
+        if decision.followup_request is None:
+            state.stop_reason = "model chose to stop"
+            break
+
+    if state.stop_reason is None:
+        state.stop_reason = "model chose to stop"
+    return state
 
 
 def run_read_only_diagnosis_loop(
