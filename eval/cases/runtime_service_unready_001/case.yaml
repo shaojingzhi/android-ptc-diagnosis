@@ -1,0 +1,23 @@
+metadata:
+  synthetic: true
+  provenance: "hand-authored container-runtime boundary replay; not production data"
+request:
+  symptom: "com.demo.unready cannot start because the runtime service is not ready"
+  target_package: "com.demo.unready"
+  failure_timestamp: "2026-10-03T15:00:03"
+  diagnosis_scope: "container_runtime_boundary"
+expected:
+  primary_event_contains: "runtime service startup timeout"
+  supporting_evidence_contains:
+    - "container runtime readiness probe expired"
+    - "required service unavailable"
+  propagation_contains:
+    - "binder transaction failed"
+    - "app-visible startup dependency unavailable"
+    - "FATAL EXCEPTION"
+  uncertainties:
+    - "cross-source order unknown"
+    - "why the runtime service failed to become ready is not established"
+  recommended_next_checks:
+    - "Inspect runtime service readiness and required dependency state"
+    - "Check runtime process, cgroup, and required mount state"

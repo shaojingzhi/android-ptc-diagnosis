@@ -1,0 +1,23 @@
+processes:
+  runtime_service:
+    pid: 2600
+    state: running
+    restart_count: 0
+cgroups:
+  runtime_service:
+    path: /container/runtime
+    memory_current_bytes: 16777216
+    memory_max_bytes: 67108864
+    oom_kill_count: 0
+services:
+  runtime_service:
+    state: starting
+    ready: false
+    health: degraded
+    required_dependency: vendor_bridge
+    dependency_ready: false
+mounts:
+  /container/runtime:
+    available: true
+    source: /dev/mapper/container-runtime
+    read_only_mount: true
