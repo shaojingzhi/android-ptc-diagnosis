@@ -49,9 +49,10 @@ def test_system_prompt_exposes_the_correct_skill_composition_contract():
 
     assert "android_ptc_diag.skills" in prompt
     assert "from tools.android_ptc_diag.skills import" in prompt
-    assert "select_group_evidence_indices" in prompt
-    assert 'get_events(indices=indices)["events"]' in prompt
-    assert "build_timeline(raw)" in prompt
+    assert "inspect_group_evidence" in prompt
+    assert "group_id" in prompt
+    assert "evidence_view" in prompt
+    assert "build_timeline(raw)" not in prompt
 
 
 def test_wrapper_passes_only_the_skill_compact_variation(monkeypatch, tmp_path):

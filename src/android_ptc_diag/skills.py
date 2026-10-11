@@ -133,18 +133,39 @@ def build_evidence_view(events: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def inspect_group_evidence(
-    groups: list[dict[str, Any]],
+    group_ids: list[int],
     event_count: int,
     *,
     boundary_radius: int = 1,
 ) -> dict[str, Any]:
-    """Select, fetch, and timeline bounded raw evidence for compact groups.
+    """Resolve compact group IDs and fetch bounded source-local evidence.
 
-    The sandbox runtime provides ``tools.diagnostic.get_events``. Keeping that
-    import inside the skill makes the raw-evidence boundary explicit while
-    allowing the lower-level selection and timeline helpers to stay reusable.
+    Group IDs are stable in normalized event order and are resolved through the
+    metadata-only ``group_by_template`` primitive. Raw records are still read
+    only through explicit bounded indices.
     """
-    from tools.diagnostic import get_events
+    if not isinstance(group_ids, list):
+        raise ValueError("group_ids must be a list of integers")
+
+    from tools.diagnostic import get_events, group_by_template
+
+    grouped = group_by_template()
+    available = {group.get("group_id"): group for group in grouped.get("groups", [])}
+    groups: list[dict[str, Any]] = []
+    for group_id in group_ids:
+        if isinstance(group_id, bool) or not isinstance(group_id, int):
+            raise ValueError(f"invalid group_id: {group_id}")
+        group = available.get(group_id)
+        if group is None:
+            raise ValueError(f"invalid group_id: {group_id}")
+        groups.append(
+            {
+                "group_id": group_id,
+                "representative_index": group["first_index"],
+                "first_index": group["first_index"],
+                "last_index": group["last_index"],
+            }
+        )
 
     indices = select_group_evidence_indices(
         groups, event_count, boundary_radius=boundary_radius

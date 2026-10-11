@@ -8,6 +8,7 @@ from .models import LogEvent
 
 
 _MODEL_GROUP_FIELDS = (
+    "group_id",
     "template_id",
     "template",
     "count",
@@ -56,6 +57,8 @@ def build_compact_evidence(events: list[LogEvent]) -> dict[str, Any]:
         groups.append(group)
 
     groups.sort(key=lambda group: group["first_index"])
+    for group_id, group in enumerate(groups):
+        group["group_id"] = group_id
     return {"event_count": len(events), "group_count": len(groups), "groups": groups}
 
 

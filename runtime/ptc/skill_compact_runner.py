@@ -24,19 +24,16 @@ The compact evidence is the primary index over the raw log events.
 Two tested reusable skills from the source module android_ptc_diag.skills are
 available in generated code from tools.android_ptc_diag.skills:
 
-from tools.android_ptc_diag.skills import (
-    select_group_evidence_indices,
-    build_timeline,
-)
+from tools.android_ptc_diag.skills import inspect_group_evidence
 
-Use compact groups to decide which evidence requires inspection. Prefer these
-skills over reimplementing boundary selection, deduplication, or timeline order.
-The controlled pattern is:
+Use compact group_id values to decide which evidence requires inspection. The
+controlled pattern is:
 
-indices = select_group_evidence_indices(suspect_groups, raw_event_count,
-                                        boundary_radius=1)
-raw = get_events(indices=indices)["events"]
-timeline = build_timeline(raw)
+evidence = inspect_group_evidence(group_ids, raw_event_count, boundary_radius=1)
+
+The Skill resolves group metadata, performs bounded raw access, and returns a
+source-local evidence_view. Do not recreate group dictionaries or infer a global
+cross-source timeline.
 
 Lightweight loops, conditions, filters, joins, and aggregation should remain in
 generated code. Return only compact evidence needed for diagnosis. Compact

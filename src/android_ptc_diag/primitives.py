@@ -133,8 +133,11 @@ def group_by_template(
     values = []
     for group in groups.values():
         group["first_index"] = min(group["indices"])
+        group["last_index"] = max(group["indices"])
         group["count"] = len(group["indices"])
         values.append(group)
+    for group_id, group in enumerate(sorted(values, key=lambda item: item["first_index"])):
+        group["group_id"] = group_id
     return {"groups": values, "count": len(values)}
 
 

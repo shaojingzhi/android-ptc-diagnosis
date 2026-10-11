@@ -71,6 +71,7 @@ def test_compact_model_view_is_deterministic_and_omits_provenance_arrays():
 
     assert first == second
     assert first["group_count"] == 13
+    assert [group["group_id"] for group in first["groups"]] == list(range(13))
     assert [group["first_index"] for group in first["groups"]] == sorted(
         group["first_index"] for group in first["groups"]
     )
@@ -89,6 +90,18 @@ def test_compact_model_view_is_deterministic_and_omits_provenance_arrays():
     )
     assert model_view_bytes < raw_bytes
 
+
+def test_compact_group_ids_are_stable_group_identity_not_event_indices():
+    compact = build_compact_evidence(_clustered_events())
+
+    for group_id, group in enumerate(compact["groups"]):
+        assert group["group_id"] == group_id
+    binder = _group_with_index(compact, 21)
+    assert binder["group_id"] != binder["representative_index"]
+
+    view = compact_model_view(compact)
+    assert [group["group_id"] for group in view["groups"]] == list(range(13))
+    assert all("indices" not in group for group in view["groups"])
 
 def test_compact_direct_prompt_contains_all_groups_without_ground_truth_labels():
     events = _clustered_events()

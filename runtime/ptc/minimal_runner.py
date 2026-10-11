@@ -54,12 +54,13 @@ cross_source_order="unknown", do not infer strict cross-source temporal causalit
 
 Reusable deterministic evidence Skill:
 from tools.android_ptc_diag.skills import inspect_group_evidence
-- inspect_group_evidence(groups, event_count, boundary_radius=1) ->
+- inspect_group_evidence(group_ids, event_count, boundary_radius=1) ->
   {indices, count, evidence_view}
-It internally selects bounded boundary indices, calls get_events(indices=...),
-and returns source-local evidence_view. You choose suspect groups; do not
-manually pass an index list into separate raw-evidence/timeline steps or read
-raw evidence outside this Skill. evidence_view has ordering="source_local",
+It resolves compact group IDs using metadata-only group_by_template, selects
+bounded boundary indices, calls get_events(indices=...), and returns source-local
+evidence_view. Choose suspect group IDs from compact_evidence; do not recreate
+group dictionaries, pass raw event indices to this Skill, or read raw evidence
+outside it. evidence_view has ordering="source_local",
 cross_source_order="unknown", and source buckets; do not infer a global order.
 
 Diagnostic primitives:

@@ -2,11 +2,13 @@ import sys
 from types import ModuleType
 from pathlib import Path
 
+import pytest
+
 from android_ptc_diag.backend import ReplayBackend
 from android_ptc_diag.cases import load_case
 from android_ptc_diag.clustering import cluster_events
 from android_ptc_diag.compact import build_compact_evidence
-from android_ptc_diag.primitives import get_events
+from android_ptc_diag.primitives import get_events, group_by_template
 from android_ptc_diag.skills import (
     build_evidence_view,
     build_timeline,
@@ -106,21 +108,28 @@ def test_selection_is_deterministic():
 def test_inspect_group_evidence_fetches_only_bounded_indices(monkeypatch):
     events, groups = _fixture()
     selected_groups = [_group(groups, index) for index in (20, 21, 371, 499)]
+    selected_group_ids = [group["group_id"] for group in selected_groups]
     calls = []
+    grouping_calls = []
 
     tools_module = ModuleType("tools")
     tools_module.__path__ = []
     diagnostic_module = ModuleType("tools.diagnostic")
+
+    def fake_group_by_template(*, indices=None):
+        grouping_calls.append(indices)
+        return group_by_template(events, indices)
 
     def fake_get_events(*, indices):
         calls.append(indices)
         return get_events(events, indices)
 
     diagnostic_module.get_events = fake_get_events
+    diagnostic_module.group_by_template = fake_group_by_template
     monkeypatch.setitem(sys.modules, "tools", tools_module)
     monkeypatch.setitem(sys.modules, "tools.diagnostic", diagnostic_module)
 
-    result = inspect_group_evidence(selected_groups, len(events))
+    result = inspect_group_evidence(selected_group_ids, len(events))
 
     expected = [
         19,
@@ -138,12 +147,28 @@ def test_inspect_group_evidence_fetches_only_bounded_indices(monkeypatch):
         499,
     ]
     assert calls == [expected]
+    assert grouping_calls == [None]
     assert result["indices"] == expected
     assert result["count"] == 13
     assert result["evidence_view"]["ordering"] == "source_local"
     assert result["evidence_view"]["cross_source_order"] == "unknown"
     assert [event["index"] for event in result["evidence_view"]["sources"]["logcat"]] == expected
     assert result["count"] < sum(group["count"] for group in selected_groups)
+
+
+def test_inspect_group_evidence_rejects_unknown_group_id(monkeypatch):
+    events, _ = _fixture()
+
+    tools_module = ModuleType("tools")
+    tools_module.__path__ = []
+    diagnostic_module = ModuleType("tools.diagnostic")
+    diagnostic_module.group_by_template = lambda *, indices=None: group_by_template(events, indices)
+    diagnostic_module.get_events = lambda *, indices: get_events(events, indices)
+    monkeypatch.setitem(sys.modules, "tools", tools_module)
+    monkeypatch.setitem(sys.modules, "tools.diagnostic", diagnostic_module)
+
+    with pytest.raises(ValueError, match="invalid group_id: 999"):
+        inspect_group_evidence([999], len(events))
 
 
 def test_inspect_group_evidence_keeps_runtime_sources_separate(monkeypatch):
@@ -155,15 +180,17 @@ def test_inspect_group_evidence_keeps_runtime_sources_separate(monkeypatch):
         _group(groups, 1),
         _group(groups, 28),
     ]
+    selected_group_ids = [group["group_id"] for group in selected_groups]
 
     tools_module = ModuleType("tools")
     tools_module.__path__ = []
     diagnostic_module = ModuleType("tools.diagnostic")
+    diagnostic_module.group_by_template = lambda *, indices=None: group_by_template(events, indices)
     diagnostic_module.get_events = lambda *, indices: get_events(events, indices)
     monkeypatch.setitem(sys.modules, "tools", tools_module)
     monkeypatch.setitem(sys.modules, "tools.diagnostic", diagnostic_module)
 
-    result = inspect_group_evidence(selected_groups, len(events))
+    result = inspect_group_evidence(selected_group_ids, len(events))
     view = result["evidence_view"]
 
     assert set(view["sources"]) == {"logcat", "kmessage"}
