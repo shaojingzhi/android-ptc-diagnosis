@@ -162,6 +162,41 @@ def group_by_pid(
     return {"groups": values, "count": len(values)}
 
 
+def _inspect_runtime_entry(
+    runtime_state: dict[str, Any],
+    collection: str,
+    key: str,
+    label: str,
+) -> dict[str, Any]:
+    entries = runtime_state.get(collection)
+    if not isinstance(entries, dict) or key not in entries:
+        raise ValueError(f"unknown {label}: {key}")
+    value = entries[key]
+    if not isinstance(value, dict):
+        raise ValueError(f"invalid {label} state: {key}")
+    return {label: key, **value, "read_only": True}
+
+
+def inspect_process_state(runtime_state: dict[str, Any], *, name: str) -> dict[str, Any]:
+    """Read one deterministic replay process record without changing state."""
+    return _inspect_runtime_entry(runtime_state, "processes", name, "process")
+
+
+def inspect_cgroup_state(runtime_state: dict[str, Any], *, name: str) -> dict[str, Any]:
+    """Read one deterministic replay cgroup record without changing state."""
+    return _inspect_runtime_entry(runtime_state, "cgroups", name, "cgroup")
+
+
+def inspect_service_state(runtime_state: dict[str, Any], *, name: str) -> dict[str, Any]:
+    """Read one deterministic replay service record without changing state."""
+    return _inspect_runtime_entry(runtime_state, "services", name, "service")
+
+
+def inspect_mount_state(runtime_state: dict[str, Any], *, path: str) -> dict[str, Any]:
+    """Read one deterministic replay mount record without changing state."""
+    return _inspect_runtime_entry(runtime_state, "mounts", path, "mount")
+
+
 def _function_spec(
     name: str,
     description: str,

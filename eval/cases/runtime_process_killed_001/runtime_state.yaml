@@ -1,0 +1,22 @@
+processes:
+  runtime_service:
+    pid: 2300
+    state: dead
+    exit_reason: cgroup_memory_pressure
+    restart_count: 0
+cgroups:
+  runtime_service:
+    path: /container/runtime
+    memory_current_bytes: 52428800
+    memory_max_bytes: 33554432
+    oom_kill_count: 1
+services:
+  runtime_service:
+    state: unavailable
+    pid: 2300
+    health: failed
+mounts:
+  /container/runtime:
+    available: true
+    source: /dev/mapper/container-runtime
+    read_only_mount: true

@@ -51,6 +51,24 @@ class DirectDiagnosis(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class DiagnosisLoopStep(BaseModel):
+    current_diagnosis: DirectDiagnosis
+    uncertainties: list[str] = Field(default_factory=list)
+    chosen_check: str
+    why_this_check: str
+    check_arguments: dict[str, Any] = Field(default_factory=dict)
+    returned_evidence: dict[str, Any] = Field(default_factory=dict)
+    updated_diagnosis: DirectDiagnosis
+    stop_reason: str | None = None
+
+
+class DiagnosisLoopState(BaseModel):
+    current_diagnosis: DirectDiagnosis
+    uncertainties: list[str] = Field(default_factory=list)
+    steps: list[DiagnosisLoopStep] = Field(default_factory=list)
+    stop_reason: str | None = None
+
+
 class DirectTrace(BaseModel):
     case_id: str | None = None
     mode: Literal["direct"] = "direct"
