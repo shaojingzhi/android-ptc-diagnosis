@@ -160,6 +160,12 @@ Deterministic pipeline 的首次结果（修复 component-aware grouping 前）�
 
 这个 smoke 证明 real-log ingestion → incident-aware compact evidence → bounded indexed retrieval → valid diagnosis 的链路已闭环，但也暴露两个不能掩盖的问题：第一，122,654-byte / 275-group 初始 task 加上多轮 context 仍产生约 141k tokens；第二，模型 final notes 使用了 “Root cause” 和 “No environmental/system failure is implicated” 等过强措辞，超出项目偏好的 primary-candidate / evidence-bounded language。该结果按原样保留，不调 prompt、不重跑，也不覆盖历史 synthetic frozen benchmark。外部 trace 文件为 `compact-direct-trace-53fb8a0.jsonl`，SHA256 为 `3eab12983a4dd4243eb58749cc8d56eeb2858a3b602b68213e9e54fd24da5d46`。
 
+对冻结 snapshot/task/trace 做离线成本归因后，122,654-byte task 可精确拆成：固定 instructions 461 bytes（0.38%）、template text 35,819（29.20%）、incident/baseline fields 29,042（23.68%）、其余 group metadata 55,770（45.47%）和其他 payload/JSON 1,562（1.27%）。因此已证实的问题不是 instruction 太长，而是把 275 个 group 的完整 template、phase counters 和重复 metadata 一次性全部放入首轮 context。199 个 group 还是 singleton，真实日志的高基数限制了仅靠 Drain3 压缩的收益。
+
+冻结 trace 只有 aggregate `139,826 / 1,027 / 140,853` token usage，没有逐轮 usage；四个 indexed tool result 合计 21,407 bytes。无法据此真实拆分每轮 token，也不能把 byte/token 换算当成实际 provider usage。初始 task 和累积 context 很可能是主要成本来源，但“二级索引会按比例降低 token 且不损失准确率”仍是尚未验证的假设。
+
+候选的最小后续设计是 two-level evidence index：首轮只提供按 incident novelty、request overlap、时间邻近和 source/tag/level 多样性确定性选出的 bounded detailed groups；其余 group 保留在稳定 `group_id` 的 deferred index 中，通过一个 bounded read-only query 按需获取。不能硬编码 crash 字符串/ground-truth index，也不能只筛 ERROR。全部 545 events、raw-line provenance 和 indexed access 必须保留，并先用 evidence reachability、source/tag/level/phase coverage、100% provenance coverage、query bound、determinism 和 task bytes 做离线验收。完整分析见 [real-log-cost-attribution.md](real-log-cost-attribution.md)。
+
 完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
 
 ## Known limitations
