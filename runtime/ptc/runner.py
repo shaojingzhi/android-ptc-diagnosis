@@ -371,7 +371,7 @@ async def _run_case(
     snapshot_bytes = _snapshot_bytes(events, request)
     server_config = MCPServerConfig(
         name="diagnostic",
-        description="The eight deterministic normalized-log primitives.",
+        description="The deterministic normalized-log primitives.",
         command="uv",
         args=["run", "python", str(DIAGNOSTIC_MCP)],
         env={

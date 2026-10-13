@@ -211,10 +211,10 @@ def test_two_level_executor_is_opt_in_and_default_contract_is_unchanged():
 
     assert "compact_evidence" in default_payload
     assert "two_level_evidence" not in default_payload
-    assert len(default.tools) == 8
+    assert len(default.tools) == 9
     assert "two_level_evidence" in payload
     assert "compact_evidence" not in payload
     assert payload["two_level_evidence"]["deferred_group_count"] == 3
-    assert len(two_level.tools) == 9
+    assert len(two_level.tools) == 10
     assert two_level.tools[-1]["function"]["name"] == "query_deferred_groups"
     assert "query_deferred_groups" in two_level.handlers

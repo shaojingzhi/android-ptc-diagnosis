@@ -92,7 +92,7 @@ def test_direct_loop_returns_structured_final_after_tool_result():
     assert result.trace.stopped_by_round_limit is False
     assert result.trace.model_dump()["mode"] == "direct"
     assert result.trace.error is None
-    assert model.bound_tools and len(model.bound_tools) == 8
+    assert model.bound_tools and len(model.bound_tools) == 9
 
 
 def test_direct_loop_supports_multiple_tool_rounds():

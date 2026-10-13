@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+import math
 from typing import Any, Callable
 
 from .clustering import group_events_by_identity
@@ -150,6 +151,149 @@ def group_by_pid(
     return {"groups": values, "count": len(values)}
 
 
+def _context_clock(event: LogEvent) -> tuple[str, datetime | float] | None:
+    if event.source == "kmsg":
+        return (
+            ("kmessage_monotonic", event.monotonic_seconds)
+            if event.monotonic_seconds is not None
+            else None
+        )
+    if event.timestamp is None:
+        return None
+    awareness = "aware" if event.timestamp.utcoffset() is not None else "naive"
+    return (f"wall_clock_{awareness}", event.timestamp)
+
+
+def _context_affinity(
+    event: LogEvent, candidate: LogEvent, same_group: bool
+) -> tuple[tuple[bool | int, ...], str]:
+    same_pid = event.pid is not None and event.pid == candidate.pid
+    same_source = event.source == candidate.source
+    same_component = same_source and (
+        (event.tag is not None and event.tag == candidate.tag)
+        or (event.component is not None and event.component == candidate.component)
+    )
+    source_affinity = 2 if same_component else 1 if same_source else 0
+    relation = (
+        "same_pid"
+        if same_pid
+        else "same_source_tag_component"
+        if source_affinity
+        else "same_group"
+        if same_group
+        else "temporal_proximity"
+    )
+    return (not same_pid, -source_affinity, not same_group), relation
+
+
+def inspect_failure_context(
+    events: list[LogEvent],
+    candidate_indices: list[int],
+    *,
+    before_seconds: float = 5.0,
+    after_seconds: float = 5.0,
+    max_events: int = 50,
+) -> dict[str, Any]:
+    """Return bounded source-local evidence around existing failure candidates."""
+    if not isinstance(candidate_indices, list) or not candidate_indices:
+        raise ValueError("candidate_indices must be a non-empty list")
+    if any(
+        not isinstance(index, int) or isinstance(index, bool)
+        for index in candidate_indices
+    ):
+        raise ValueError("candidate_indices must contain integers")
+    candidates = _indices(events, candidate_indices)
+    for name, value in (("before_seconds", before_seconds), ("after_seconds", after_seconds)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{name} must be a number")
+        if not math.isfinite(value) or value < 0:
+            raise ValueError(f"{name} must be finite and non-negative")
+    if not isinstance(max_events, int) or isinstance(max_events, bool) or max_events < 1:
+        raise ValueError("max_events must be a positive integer")
+    if len(candidates) > max_events:
+        raise ValueError("max_events must be at least the number of candidates")
+
+    group_ids = {
+        index: group["group_id"]
+        for group in group_events_by_identity(events)
+        for index in group["indices"]
+    }
+    candidate_set = set(candidates)
+    candidate_clocks = {index: _context_clock(events[index]) for index in candidates}
+    ranked: list[tuple[tuple[Any, ...], int, str]] = []
+    for index, event in enumerate(events):
+        if index in candidate_set or (clock := _context_clock(event)) is None:
+            continue
+        comparisons = []
+        for candidate_index, candidate_clock in candidate_clocks.items():
+            if candidate_clock is None or clock[0] != candidate_clock[0]:
+                continue
+            delta = clock[1] - candidate_clock[1]
+            seconds = delta.total_seconds() if isinstance(delta, timedelta) else delta
+            if -before_seconds <= seconds <= after_seconds:
+                affinity, relation = _context_affinity(
+                    event,
+                    events[candidate_index],
+                    group_ids[index] == group_ids[candidate_index],
+                )
+                comparisons.append(((*affinity, abs(seconds), index), relation))
+        if comparisons:
+            rank, relation = min(comparisons)
+            ranked.append((rank, index, relation))
+
+    ranked.sort(key=lambda item: item[0])
+    selected_context = ranked[: max_events - len(candidates)]
+    truncated = len(ranked) > len(selected_context)
+    selected = [(index, "candidate") for index in candidates]
+    selected.extend((index, relation) for _, index, relation in selected_context)
+    records = [
+        {
+            **_event_dict(index, events[index]),
+            "raw_line_number": events[index].raw_line_number,
+            "group_id": group_ids[index],
+            "relation": relation,
+        }
+        for index, relation in selected
+    ]
+
+    clocks = [_context_clock(events[record["index"]]) for record in records]
+    domains = {clock[0] for clock in clocks if clock is not None}
+    values = [clock[1] for clock in clocks if clock is not None]
+    time_range: dict[str, Any] = {"start": None, "end": None}
+    if len(domains) == 1 and values:
+        start, end = min(values), max(values)
+        time_range = {
+            "start": start.isoformat() if isinstance(start, datetime) else start,
+            "end": end.isoformat() if isinstance(end, datetime) else end,
+        }
+
+    limitations = []
+    if truncated:
+        limitations.append("context truncated by max_events")
+    if len(domains) > 1:
+        limitations.append("cross-source time order is unknown")
+    missing_clocks = [index for index, clock in candidate_clocks.items() if clock is None]
+    if missing_clocks:
+        limitations.append(f"candidate indices without comparable time: {missing_clocks}")
+
+    return {
+        "candidate_indices": candidates,
+        "context_indices": [index for _, index, _ in selected_context],
+        "events": records,
+        "evidence_summary": {
+            "event_count": len(records),
+            "sources": sorted({record["source"] for record in records}),
+            "pids": sorted({record["pid"] for record in records if record["pid"] is not None}),
+            "groups": sorted({record["group_id"] for record in records}),
+            "time_range": time_range,
+        },
+        "cross_source_order": "unknown" if len(domains) > 1 else "single_time_domain",
+        "truncated": truncated,
+        "limitations": limitations,
+        "read_only": True,
+    }
+
+
 def _inspect_runtime_entry(
     runtime_state: dict[str, Any],
     collection: str,
@@ -281,6 +425,18 @@ _TOOL_DEFINITIONS = [
         "Group selected Logcat events by normalized PID.",
         {"indices": _INDICES},
     ),
+    _function_spec(
+        "inspect_failure_context",
+        "Read bounded contextual evidence around existing failure-candidate indices; "
+        "this does not infer root cause.",
+        {
+            "candidate_indices": _INDICES,
+            "before_seconds": {"type": "number", "minimum": 0},
+            "after_seconds": {"type": "number", "minimum": 0},
+            "max_events": {"type": "integer", "minimum": 1},
+        },
+        ["candidate_indices"],
+    ),
 ]
 
 
@@ -298,4 +454,7 @@ def tool_handlers(events: list[LogEvent]) -> dict[str, Callable[..., dict[str, A
         "group_by_template": lambda **kwargs: group_by_template(events, **kwargs),
         "first_occurrence": lambda **kwargs: first_occurrence(events, **kwargs),
         "group_by_pid": lambda **kwargs: group_by_pid(events, **kwargs),
+        "inspect_failure_context": lambda **kwargs: inspect_failure_context(
+            events, **kwargs
+        ),
     }

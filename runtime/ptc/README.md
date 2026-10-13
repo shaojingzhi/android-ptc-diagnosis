@@ -15,7 +15,7 @@ The runtime pins `mcp<2` because this upstream revision uses the MCP v1
 `FastMCP` API.
 
 The runner creates one frozen normalized snapshot per replay case, connects the
-eight existing primitives through the thin `diagnostic_mcp.py` wrapper, and
+the existing primitives through the thin `diagnostic_mcp.py` wrapper, and
 records PTC-specific trace data. It never uploads the repository or credentials
 to the sandbox. Generated programs retain static primitive call sites for
 explanation, while `trace["primitive_calls"]` is populated only from the

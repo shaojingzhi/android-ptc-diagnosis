@@ -91,4 +91,6 @@ def test_get_events_is_the_only_full_record_result():
     assert result["count"] == 1
     assert result["events"][0]["message"] == event.message
     assert "events" not in filter_by_level([event], levels=["E"])
-    assert len(tool_definitions()) == 8
+    definitions = tool_definitions()
+    assert len(definitions) == 9
+    assert definitions[-1]["function"]["name"] == "inspect_failure_context"

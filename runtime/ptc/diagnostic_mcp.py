@@ -24,6 +24,7 @@ from android_ptc_diag.primitives import (  # noqa: E402
     get_events as _get_events,
     group_by_pid as _group_by_pid,
     group_by_template as _group_by_template,
+    inspect_failure_context as _inspect_failure_context,
 )
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
@@ -167,6 +168,24 @@ def first_occurrence(indices: list[int] | None = None) -> dict[str, Any]:
 def group_by_pid(indices: list[int] | None = None) -> dict[str, Any]:
     """Group selected Logcat events by normalized PID."""
     return _invoke_traced("group_by_pid", _group_by_pid, indices=indices)
+
+
+@mcp.tool()
+def inspect_failure_context(
+    candidate_indices: list[int],
+    before_seconds: float = 5.0,
+    after_seconds: float = 5.0,
+    max_events: int = 50,
+) -> dict[str, Any]:
+    """Read bounded contextual evidence around existing failure candidates."""
+    return _invoke_traced(
+        "inspect_failure_context",
+        _inspect_failure_context,
+        candidate_indices=candidate_indices,
+        before_seconds=before_seconds,
+        after_seconds=after_seconds,
+        max_events=max_events,
+    )
 
 
 if __name__ == "__main__":

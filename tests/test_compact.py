@@ -193,7 +193,7 @@ def test_compact_direct_prompt_contains_all_groups_without_ground_truth_labels()
     assert "expected primary" not in prompt.lower()
     assert "primary index 20" not in prompt.lower()
     assert executor.max_tool_rounds == MAX_TOOL_ROUNDS == 6
-    assert len(executor.tools) == 8
+    assert len(executor.tools) == 9
 
 
 def test_compact_direct_prompt_adds_explicit_incident_context_only_when_supplied():
