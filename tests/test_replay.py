@@ -1,5 +1,7 @@
+from datetime import timedelta
 from pathlib import Path
 import subprocess
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -187,12 +189,46 @@ def test_logcat_fields_are_normalized():
     assert event.source == "logcat"
     assert event.timestamp is not None
     assert event.timestamp.year == 2026
+    assert event.timestamp.tzinfo is None
+    assert event.raw_line_number == 1
     assert (event.pid, event.tid, event.level, event.tag) == (
         4120,
         4120,
         "E",
         "AndroidRuntime",
     )
+
+
+def test_logcat_explicit_device_timezone_produces_aware_timestamp():
+    event = parse_logcat(
+        "10-13 15:21:28.182 4120 4120 E AndroidRuntime: crash\n",
+        year=2026,
+        device_timezone="Asia/Shanghai",
+    )[0]
+
+    assert event.timestamp is not None
+    assert event.timestamp.utcoffset() == timedelta(hours=8)
+
+
+def test_logcat_buffer_headers_are_not_events_but_line_numbers_are_preserved():
+    raw = "\n".join(
+        [
+            "--------- beginning of main",
+            "--------- beginning of kernel",
+            "--------- beginning of system",
+            "--------- beginning of radio",
+            "--------- beginning of events",
+            "10-13 15:21:28.182 4120 4120 E AndroidRuntime: crash",
+            "malformed but diagnostic",
+            "--------- beginning of crash",
+        ]
+    )
+
+    events = parse_logcat(raw, year=2026, device_timezone=ZoneInfo("Asia/Shanghai"))
+
+    assert [event.message for event in events] == ["crash", "malformed but diagnostic"]
+    assert [event.raw_line_number for event in events] == [6, 7]
+    assert list(enumerate(event.raw_line_number for event in events)) == [(0, 6), (1, 7)]
 
 
 def test_kmsg_monotonic_timestamp_is_preserved():

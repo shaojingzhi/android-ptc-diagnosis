@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import math
 
 from .clustering import cluster_events
@@ -94,15 +94,28 @@ def incident_event_indices(events: list[LogEvent], request: TriageRequest) -> li
     after = request.window_after_seconds or 0
     start = center - timedelta(seconds=before)
     end = center + timedelta(seconds=after)
-    center_is_aware = center.utcoffset() is not None
+    return event_indices_in_interval(events, start=start, end=end)
+
+
+def event_indices_in_interval(
+    events: list[LogEvent], *, start: datetime, end: datetime
+) -> list[int]:
+    """Select timestamped non-KMessage events in a precise closed interval."""
+    if not isinstance(start, datetime) or not isinstance(end, datetime):
+        raise ValueError("start and end must be datetime values")
+    if (start.utcoffset() is not None) != (end.utcoffset() is not None):
+        raise ValueError("start and end must use the same timezone awareness")
+    if start > end:
+        raise ValueError("start must not be after end")
+    interval_is_aware = start.utcoffset() is not None
 
     selected = []
     for index, event in enumerate(events):
         if event.source == "kmsg" or event.timestamp is None:
             continue
-        if (event.timestamp.utcoffset() is not None) != center_is_aware:
+        if (event.timestamp.utcoffset() is not None) != interval_is_aware:
             raise ValueError(
-                "incident center and wall-clock events must use the same "
+                "interval and wall-clock events must use the same "
                 "timezone awareness"
             )
         if start <= event.timestamp <= end:

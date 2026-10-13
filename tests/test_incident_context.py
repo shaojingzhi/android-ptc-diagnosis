@@ -6,7 +6,7 @@ import pytest
 from android_ptc_diag.cases import load_case, load_case_metadata
 from android_ptc_diag.compact import build_compact_evidence, compact_model_view
 from android_ptc_diag.models import CaseMetadata, LogEvent, TriageRequest
-from android_ptc_diag.triage import incident_event_indices
+from android_ptc_diag.triage import event_indices_in_interval, incident_event_indices
 
 
 CASES = Path(__file__).parents[1] / "eval" / "cases"
@@ -87,6 +87,68 @@ def test_incident_window_rejects_mixed_datetime_awareness(center, event_time):
 
     with pytest.raises(ValueError, match="same timezone awareness"):
         incident_event_indices(events, request)
+
+
+def test_precise_interval_is_closed_at_millisecond_boundaries():
+    zone = timezone(timedelta(hours=8))
+    start = datetime(2026, 10, 13, 15, 21, 28, 182000, tzinfo=zone)
+    end = datetime(2026, 10, 13, 15, 21, 32, 332000, tzinfo=zone)
+    events = [
+        LogEvent(
+            source="logcat",
+            timestamp=start - timedelta(microseconds=1),
+            message="before",
+        ),
+        LogEvent(source="logcat", timestamp=start, message="start"),
+        LogEvent(source="logcat", timestamp=end, message="end"),
+        LogEvent(
+            source="logcat",
+            timestamp=end + timedelta(microseconds=1),
+            message="after",
+        ),
+        LogEvent(source="kmsg", timestamp=start, message="unmapped monotonic source"),
+    ]
+
+    assert event_indices_in_interval(events, start=start, end=end) == [1, 2]
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "message"),
+    [
+        (
+            datetime(2026, 10, 13, 12, 0),
+            datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc),
+            "same timezone awareness",
+        ),
+        (
+            "2026-10-13T12:00:00",
+            datetime(2026, 10, 13, 12, 1),
+            "datetime values",
+        ),
+        (
+            datetime(2026, 10, 13, 12, 1),
+            datetime(2026, 10, 13, 12, 0),
+            "start must not be after end",
+        ),
+    ],
+)
+def test_precise_interval_rejects_incompatible_bounds(start, end, message):
+    with pytest.raises(ValueError, match=message):
+        event_indices_in_interval([], start=start, end=end)
+
+
+def test_precise_interval_rejects_event_timezone_mismatch():
+    events = [
+        LogEvent(
+            source="logcat",
+            timestamp=datetime(2026, 10, 13, 12, 0),
+            message="naive event",
+        )
+    ]
+    start = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(ValueError, match="same timezone awareness"):
+        event_indices_in_interval(events, start=start, end=start)
 
 
 def test_old_cases_load_without_incident_context():

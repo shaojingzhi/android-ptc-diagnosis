@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class LogEvent(BaseModel):
     source: Literal["logcat", "kmsg", "replay"]
+    raw_line_number: int | None = Field(default=None, ge=1)
     timestamp: datetime | None = None
     monotonic_seconds: float | None = None
     level: str | None = None

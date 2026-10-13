@@ -115,7 +115,7 @@ Deterministic pipeline 的首次结果（修复 component-aware grouping 前）�
 - `FATAL EXCEPTION`、`M1 deliberate Java crash` 和 `Caused by: IllegalStateException` 均可通过原始 event index 定位。
 - baseline 已存在重复 `BestClock`、`healthd` 和 `JobService` WARNING；post-failure 还出现与 fixture 无关的 `TaskPersister`、Google speech/network ERROR。这直接说明 ERROR/WARNING severity 不能替代 incident relevance 判断。
 
-这次验证暴露了两个最小 ingestion gap：
+这次验证暴露了三个最小 ingestion/grouping gap：
 
 1. `adb-agent` Logcat 行只有设备本地月日时间，现有 parser 生成 naive datetime；设备 `date` 边界带 `+0800`。incident helper 正确拒绝 naive/aware 混用。本次分析先核实设备时区，再显式使用 device-local naive 边界。最小后续修复应是在采集入口把已记录的设备时区附加到 Logcat timestamp，或统一规范化两侧时间，而不是静默丢弃时区。
 2. 当前 center + integer before/after window 不适合精确表达这次分别记录的毫秒级 baseline/incident 起止边界。本次直接从精确边界生成显式 indices。若继续产品化 real-log ingestion，最小扩展是增加 explicit start/end helper，不改变 compact 或诊断规则。
@@ -135,6 +135,16 @@ Deterministic pipeline 的首次结果（修复 component-aware grouping 前）�
 一个 group，`FATAL EXCEPTION` 和两处 `M1 deliberate Java crash` 仍可定位。
 
 7 个现有 synthetic cases 的 group count 和 FIXED Top-3 在 deterministic 回归中没有变化。历史 experiment/trace 保持冻结；由于 group identity 语义已经变化，旧 trace 与未来包含跨 component 相同模板的数据不能按 group count 直接比较。
+
+随后对 ingestion/time-window 做了独立修正：
+
+- `parse_logcat()` 允许调用方显式提供 IANA device timezone 或 `tzinfo`，把 Logcat device-local time 转成 timezone-aware datetime；默认仍返回 naive datetime，保持旧 replay fixture 兼容，不假设 UTC。
+- `beginning of main/kernel/system/crash/radio/events` 是 Logcat framing metadata，不再成为 normalized diagnostic event。每个保留事件记录 1-based `raw_line_number`，而 normalized event index 仍是过滤后列表中的位置，两者不再混淆。
+- 新的精确 interval helper 接受 `start` / `end` datetime，按毫秒/微秒精度执行闭区间筛选；它拒绝字符串边界、倒置区间以及 naive/aware 混用，并继续排除无法映射到 wall clock 的 KMessage。
+
+同一份 549-line capture 使用 `Asia/Shanghai` 和采集时记录的精确边界重放后：4 条 buffer header 被排除，得到 545 个 normalized events，且 545 个 timestamp 全部 timezone-aware；baseline / incident / unassigned 为 `14 / 371 / 160`，compact 汇总计数完全一致。component-aware compact 在清理后的输入上得到 275 groups；这是 ingestion stream 改变后的结果，不应与旧 266/276 group count 当作同版本指标比较。
+
+原始 crash evidence 仍可追溯，但 normalized index 因 header removal 合理变化：`FATAL EXCEPTION` 从 123 变为 119（raw line 124），两处 `M1 deliberate Java crash` 从 125/140 变为 121/136（raw lines 126/141）。这说明对外报告真实采集证据时应同时保留 raw line provenance 与 normalized index。
 
 完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
 
