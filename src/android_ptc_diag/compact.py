@@ -21,24 +21,34 @@ _MODEL_GROUP_FIELDS = (
     "pid",
 )
 
-_INCIDENT_GROUP_FIELDS = (
+_COMPARISON_GROUP_FIELDS = (
     "baseline_count",
     "incident_count",
-    "first_seen_in_incident",
+    "unassigned_count",
+    "not_seen_in_observed_baseline",
 )
 
 
 def build_compact_evidence(
     events: list[LogEvent],
     *,
+    baseline_indices: list[int] | None = None,
     incident_indices: list[int] | None = None,
 ) -> dict[str, Any]:
-    """Group events by existing template metadata without changing raw events."""
-    incident_set = None if incident_indices is None else set(incident_indices)
-    if incident_set is not None and any(
-        index < 0 or index >= len(events) for index in incident_set
-    ):
-        raise ValueError("incident event index out of range")
+    """Group events without changing raw provenance.
+
+    Comparison counts are added only when either index set is supplied. Events
+    in neither explicit set remain unassigned rather than becoming baseline.
+    """
+    comparison_requested = baseline_indices is not None or incident_indices is not None
+    baseline_set = set(baseline_indices or [])
+    incident_set = set(incident_indices or [])
+    for name, selected in (("baseline", baseline_set), ("incident", incident_set)):
+        if any(index < 0 or index >= len(events) for index in selected):
+            raise ValueError(f"{name} event index out of range")
+    overlap = baseline_set & incident_set
+    if overlap:
+        raise ValueError(f"baseline and incident indices overlap: {sorted(overlap)}")
 
     groups_by_key: dict[str, dict[str, Any]] = {}
     for index, event in enumerate(events):
@@ -70,14 +80,18 @@ def build_compact_evidence(
                 "pid": representative.pid,
             }
         )
-        if incident_set is not None:
+        if comparison_requested:
+            baseline_count = sum(index in baseline_set for index in indices)
             incident_count = sum(index in incident_set for index in indices)
-            baseline_count = len(indices) - incident_count
+            unassigned_count = len(indices) - baseline_count - incident_count
             group.update(
                 {
                     "baseline_count": baseline_count,
                     "incident_count": incident_count,
-                    "first_seen_in_incident": incident_count > 0 and baseline_count == 0,
+                    "unassigned_count": unassigned_count,
+                    "not_seen_in_observed_baseline": (
+                        incident_count > 0 and baseline_count == 0
+                    ),
                 }
             )
         groups.append(group)
@@ -93,7 +107,7 @@ def compact_model_view(compact: dict[str, Any]) -> dict[str, Any]:
     groups = [
         {
             field: group[field]
-            for field in _MODEL_GROUP_FIELDS + _INCIDENT_GROUP_FIELDS
+            for field in _MODEL_GROUP_FIELDS + _COMPARISON_GROUP_FIELDS
             if field in group
         }
         for group in compact["groups"]

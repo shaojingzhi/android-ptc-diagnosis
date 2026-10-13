@@ -95,6 +95,14 @@ Logcat / KMessage
 
 这些数字用于解释工程取舍，不代表跨模型、跨硬件的普适性能结论。
 
+## Real-log incident context 的一次语义修正
+
+最初的 incident scaffold 把时间窗口外的全部事件都计为 baseline。这个定义不可靠：采集窗口外的日志不一定代表“正常状态”，也可能属于更早的故障、历史噪声或无法判断的上下文。
+
+修正后，调用方必须分别提供已观测的 `baseline_indices` 和 `incident_indices`；其余事件计入 `unassigned_count`。未做 clock alignment 的 KMessage 也保持 unassigned，但仍保留 raw index provenance。`not_seen_in_observed_baseline` 只表示某个 group 在**当前提供的 baseline 样本**中没有出现，不代表它在历史上第一次出现。
+
+真实日志中的另一个关键挑战是：**ERROR 不等于与当前故障相关**。长期存在的 ERROR、瞬时告警和 incident 附近新出现的信号必须结合显式 baseline、incident context 和 supporting evidence 判断，不能只按 severity 推断相关性或因果性。
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

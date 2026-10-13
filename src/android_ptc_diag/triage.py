@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 import math
 
 from .clustering import cluster_events
@@ -87,14 +88,23 @@ def incident_event_indices(events: list[LogEvent], request: TriageRequest) -> li
     center = request.incident_time or request.failure_timestamp
     if center is None:
         return []
+    if request.window_before_seconds is None and request.window_after_seconds is None:
+        return []
     before = request.window_before_seconds or 0
     after = request.window_after_seconds or 0
-    start = center.timestamp() - before
-    end = center.timestamp() + after
-    return [
-        index
-        for index, event in enumerate(events)
-        if event.source != "kmsg"
-        and event.timestamp is not None
-        and start <= event.timestamp.timestamp() <= end
-    ]
+    start = center - timedelta(seconds=before)
+    end = center + timedelta(seconds=after)
+    center_is_aware = center.utcoffset() is not None
+
+    selected = []
+    for index, event in enumerate(events):
+        if event.source == "kmsg" or event.timestamp is None:
+            continue
+        if (event.timestamp.utcoffset() is not None) != center_is_aware:
+            raise ValueError(
+                "incident center and wall-clock events must use the same "
+                "timezone awareness"
+            )
+        if start <= event.timestamp <= end:
+            selected.append(index)
+    return selected
