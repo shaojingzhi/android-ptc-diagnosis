@@ -119,6 +119,7 @@ Deterministic pipeline 结果：
 
 1. `adb-agent` Logcat 行只有设备本地月日时间，现有 parser 生成 naive datetime；设备 `date` 边界带 `+0800`。incident helper 正确拒绝 naive/aware 混用。本次分析先核实设备时区，再显式使用 device-local naive 边界。最小后续修复应是在采集入口把已记录的设备时区附加到 Logcat timestamp，或统一规范化两侧时间，而不是静默丢弃时区。
 2. 当前 center + integer before/after window 不适合精确表达这次分别记录的毫秒级 baseline/incident 起止边界。本次直接从精确边界生成显式 indices。若继续产品化 real-log ingestion，最小扩展是增加 explicit start/end helper，不改变 compact 或诊断规则。
+3. Drain3 的全局 message template 会把不同 component 的通用 stack frame 合并。此次 `at <*>` group 共 58 条，实际来自 `AndroidRuntime`、launcher search、Google speech、TapAndPay 和 GLSUser 等多个 tag/level，但 group representative 显示为第一条 `AndroidRuntime/E`。这会污染 component attribution 和 baseline/incident comparison。最小修复范围是在 compact group identity 中加入 source + tag（或稳定 component）边界并补 deterministic regression tests；在修改冻结 benchmark 前应单独评估影响。
 
 完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
 
