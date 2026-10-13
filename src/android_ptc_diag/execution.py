@@ -246,8 +246,30 @@ class DirectExecutor:
 class CompactDirectExecutor(DirectExecutor):
     """DIRECT execution starting from deterministic compact evidence."""
 
+    def __init__(
+        self,
+        model: Any,
+        events: list[LogEvent],
+        *,
+        baseline_indices: list[int] | None = None,
+        incident_indices: list[int] | None = None,
+        max_tool_rounds: int = MAX_TOOL_ROUNDS,
+    ):
+        super().__init__(model, events, max_tool_rounds=max_tool_rounds)
+        self.baseline_indices = baseline_indices
+        self.incident_indices = incident_indices
+
     def _request_prompt(self, request: TriageRequest) -> str:
-        compact = compact_model_view(build_compact_evidence(self.events))
+        comparison_requested = (
+            self.baseline_indices is not None or self.incident_indices is not None
+        )
+        compact = compact_model_view(
+            build_compact_evidence(
+                self.events,
+                baseline_indices=self.baseline_indices,
+                incident_indices=self.incident_indices,
+            )
+        )
         payload = {
             "symptom": request.symptom,
             "target_package": request.target_package,
@@ -264,6 +286,26 @@ class CompactDirectExecutor(DirectExecutor):
                 "notes": "list[str]",
             },
         }
+        if comparison_requested:
+            baseline_count = len(set(self.baseline_indices or []))
+            incident_count = len(set(self.incident_indices or []))
+            payload.update(
+                {
+                    "target_component": request.target_component,
+                    "expected_behavior": request.expected_behavior,
+                    "observed_behavior": request.observed_behavior,
+                    "incident_context": {
+                        "incident_time": request.incident_time.isoformat()
+                        if request.incident_time
+                        else None,
+                        "baseline_event_count": baseline_count,
+                        "incident_event_count": incident_count,
+                        "unassigned_event_count": len(self.events)
+                        - baseline_count
+                        - incident_count,
+                    },
+                }
+            )
         instructions = (
             "The compact evidence is a deterministic, provenance-preserving summary "
             "covering all raw events. Raw events remain available through the diagnostic "

@@ -184,6 +184,8 @@ def test_compact_direct_prompt_contains_all_groups_without_ground_truth_labels()
 
     assert payload["raw_event_count"] == 500
     assert payload["compact_group_count"] == 13
+    assert "incident_context" not in payload
+    assert "observed_behavior" not in payload
     assert len(groups) == 13
     assert all("indices" not in group for group in groups)
     assert "bridge_service terminated unexpectedly" in prompt
@@ -192,6 +194,36 @@ def test_compact_direct_prompt_contains_all_groups_without_ground_truth_labels()
     assert "primary index 20" not in prompt.lower()
     assert executor.max_tool_rounds == MAX_TOOL_ROUNDS == 6
     assert len(executor.tools) == 8
+
+
+def test_compact_direct_prompt_adds_explicit_incident_context_only_when_supplied():
+    events = [
+        LogEvent(source="logcat", message="baseline", template_id="a", template="baseline"),
+        LogEvent(source="logcat", message="incident", template_id="b", template="incident"),
+        LogEvent(source="logcat", message="unassigned", template_id="c", template="unassigned"),
+    ]
+    request = load_case(CASE_DIR)[0].model_copy(
+        update={
+            "target_component": "MainActivity",
+            "observed_behavior": "Activity crashes during startup",
+        }
+    )
+    executor = CompactDirectExecutor(
+        object(), events, baseline_indices=[0], incident_indices=[1]
+    )
+
+    payload = json.loads(executor._request_prompt(request).rsplit("\n", 1)[-1])
+
+    assert payload["target_component"] == "MainActivity"
+    assert payload["observed_behavior"] == "Activity crashes during startup"
+    assert payload["incident_context"] == {
+        "incident_time": None,
+        "baseline_event_count": 1,
+        "incident_event_count": 1,
+        "unassigned_event_count": 1,
+    }
+    assert payload["compact_evidence"]["groups"][0]["baseline_count"] == 1
+    assert payload["compact_evidence"]["groups"][1]["incident_count"] == 1
 
 
 def test_compact_direct_tool_metrics_distinguish_full_and_indexed_reads():
