@@ -26,6 +26,22 @@ class TriageRequest(BaseModel):
     target_package: str | None = None
     failure_timestamp: datetime | None = None
     diagnosis_scope: str | None = None
+    target_component: str | None = None
+    incident_time: datetime | None = None
+    window_before_seconds: int | None = Field(default=None, ge=0)
+    window_after_seconds: int | None = Field(default=None, ge=0)
+    expected_behavior: str | None = None
+    observed_behavior: str | None = None
+
+
+CaseProvenance = Literal[
+    "hand_authored_synthetic",
+    "locally_reproduced_real_log",
+]
+
+
+class CaseMetadata(BaseModel):
+    provenance: CaseProvenance | None = None
 
 
 class FailureCandidate(BaseModel):

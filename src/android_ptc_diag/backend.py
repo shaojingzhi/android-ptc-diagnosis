@@ -20,7 +20,8 @@ class DeviceBackend(ABC):
     def collect_events(self, request: TriageRequest) -> list[LogEvent]:
         from .parsing import load_events
 
-        year = request.failure_timestamp.year if request.failure_timestamp else 1900
+        reference_time = request.incident_time or request.failure_timestamp
+        year = reference_time.year if reference_time else 1900
         return load_events(self.collect_logcat(request), self.collect_kmsg(request), year=year)
 
     def get_package_info(self, package: str) -> dict:

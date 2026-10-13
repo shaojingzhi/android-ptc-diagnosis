@@ -1,6 +1,6 @@
 metadata:
   synthetic: true
-  provenance: "hand-authored container-runtime boundary replay; not production data"
+  provenance: hand_authored_synthetic
 request:
   symptom: "com.demo.process cannot start because the runtime service process is unavailable"
   target_package: "com.demo.process"

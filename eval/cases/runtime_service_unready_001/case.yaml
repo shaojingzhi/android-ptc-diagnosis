@@ -1,6 +1,6 @@
 metadata:
   synthetic: true
-  provenance: "hand-authored container-runtime boundary replay; not production data"
+  provenance: hand_authored_synthetic
 request:
   symptom: "com.demo.unready cannot start because the runtime service is not ready"
   target_package: "com.demo.unready"

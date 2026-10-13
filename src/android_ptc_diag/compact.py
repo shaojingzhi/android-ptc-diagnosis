@@ -21,9 +21,25 @@ _MODEL_GROUP_FIELDS = (
     "pid",
 )
 
+_INCIDENT_GROUP_FIELDS = (
+    "baseline_count",
+    "incident_count",
+    "first_seen_in_incident",
+)
 
-def build_compact_evidence(events: list[LogEvent]) -> dict[str, Any]:
+
+def build_compact_evidence(
+    events: list[LogEvent],
+    *,
+    incident_indices: list[int] | None = None,
+) -> dict[str, Any]:
     """Group events by existing template metadata without changing raw events."""
+    incident_set = None if incident_indices is None else set(incident_indices)
+    if incident_set is not None and any(
+        index < 0 or index >= len(events) for index in incident_set
+    ):
+        raise ValueError("incident event index out of range")
+
     groups_by_key: dict[str, dict[str, Any]] = {}
     for index, event in enumerate(events):
         key = event.template_id or f"unclustered:{index}"
@@ -54,6 +70,16 @@ def build_compact_evidence(events: list[LogEvent]) -> dict[str, Any]:
                 "pid": representative.pid,
             }
         )
+        if incident_set is not None:
+            incident_count = sum(index in incident_set for index in indices)
+            baseline_count = len(indices) - incident_count
+            group.update(
+                {
+                    "baseline_count": baseline_count,
+                    "incident_count": incident_count,
+                    "first_seen_in_incident": incident_count > 0 and baseline_count == 0,
+                }
+            )
         groups.append(group)
 
     groups.sort(key=lambda group: group["first_index"])
@@ -65,7 +91,11 @@ def build_compact_evidence(events: list[LogEvent]) -> dict[str, Any]:
 def compact_model_view(compact: dict[str, Any]) -> dict[str, Any]:
     """Return all group summaries while excluding full provenance index arrays."""
     groups = [
-        {field: group[field] for field in _MODEL_GROUP_FIELDS}
+        {
+            field: group[field]
+            for field in _MODEL_GROUP_FIELDS + _INCIDENT_GROUP_FIELDS
+            if field in group
+        }
         for group in compact["groups"]
     ]
     return {

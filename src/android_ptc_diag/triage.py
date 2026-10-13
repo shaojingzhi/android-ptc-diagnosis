@@ -75,3 +75,26 @@ def fixed_triage(events: list[LogEvent], request: TriageRequest) -> TriageResult
         evidence_event_indices=representative_indices,
         suppressed_duplicate_indices=duplicate_indices,
     )
+
+
+def incident_event_indices(events: list[LogEvent], request: TriageRequest) -> list[int]:
+    """Select wall-clock events inside the requested incident window.
+
+    ``failure_timestamp`` remains a fallback for existing callers. KMessage
+    monotonic time is intentionally excluded because it cannot be aligned to
+    Logcat wall-clock time without an external clock mapping.
+    """
+    center = request.incident_time or request.failure_timestamp
+    if center is None:
+        return []
+    before = request.window_before_seconds or 0
+    after = request.window_after_seconds or 0
+    start = center.timestamp() - before
+    end = center.timestamp() + after
+    return [
+        index
+        for index, event in enumerate(events)
+        if event.source != "kmsg"
+        and event.timestamp is not None
+        and start <= event.timestamp.timestamp() <= end
+    ]
