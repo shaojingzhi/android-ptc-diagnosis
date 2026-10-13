@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .clustering import group_events_by_identity
 from .models import LogEvent
 
 
@@ -50,36 +51,9 @@ def build_compact_evidence(
     if overlap:
         raise ValueError(f"baseline and incident indices overlap: {sorted(overlap)}")
 
-    groups_by_key: dict[str, dict[str, Any]] = {}
-    for index, event in enumerate(events):
-        key = event.template_id or f"unclustered:{index}"
-        group = groups_by_key.setdefault(
-            key,
-            {
-                "template_id": event.template_id,
-                "template": event.template or event.message,
-                "indices": [],
-            },
-        )
-        group["indices"].append(index)
-
-    groups: list[dict[str, Any]] = []
-    for group in groups_by_key.values():
+    groups = group_events_by_identity(events)
+    for group in groups:
         indices = group["indices"]
-        first_index = min(indices)
-        representative = events[first_index]
-        group.update(
-            {
-                "count": len(indices),
-                "first_index": first_index,
-                "last_index": max(indices),
-                "representative_index": first_index,
-                "source": representative.source,
-                "level": representative.level,
-                "tag": representative.tag,
-                "pid": representative.pid,
-            }
-        )
         if comparison_requested:
             baseline_count = sum(index in baseline_set for index in indices)
             incident_count = sum(index in incident_set for index in indices)
@@ -94,11 +68,6 @@ def build_compact_evidence(
                     ),
                 }
             )
-        groups.append(group)
-
-    groups.sort(key=lambda group: group["first_index"])
-    for group_id, group in enumerate(groups):
-        group["group_id"] = group_id
     return {"event_count": len(events), "group_count": len(groups), "groups": groups}
 
 

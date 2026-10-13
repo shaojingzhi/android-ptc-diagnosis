@@ -8,6 +8,7 @@ from android_ptc_diag.backend import ReplayBackend
 from android_ptc_diag.cases import load_case
 from android_ptc_diag.clustering import cluster_events
 from android_ptc_diag.compact import build_compact_evidence
+from android_ptc_diag.models import LogEvent
 from android_ptc_diag.primitives import get_events, group_by_template
 from android_ptc_diag.skills import (
     build_evidence_view,
@@ -169,6 +170,38 @@ def test_inspect_group_evidence_rejects_unknown_group_id(monkeypatch):
 
     with pytest.raises(ValueError, match="invalid group_id: 999"):
         inspect_group_evidence([999], len(events))
+
+
+def test_inspect_group_evidence_resolves_cross_component_group_id(monkeypatch):
+    events = [
+        LogEvent(
+            source="logcat",
+            tag="AndroidRuntime",
+            level="E",
+            message="at a.b(C.java:1)",
+        ),
+        LogEvent(
+            source="logcat", tag="Speech", level="E", message="at a.b(C.java:2)"
+        ),
+    ]
+    cluster_events(events)
+    groups = build_compact_evidence(events)["groups"]
+    speech_group = next(group for group in groups if group["tag"] == "Speech")
+
+    tools_module = ModuleType("tools")
+    tools_module.__path__ = []
+    diagnostic_module = ModuleType("tools.diagnostic")
+    diagnostic_module.group_by_template = lambda *, indices=None: group_by_template(events, indices)
+    diagnostic_module.get_events = lambda *, indices: get_events(events, indices)
+    monkeypatch.setitem(sys.modules, "tools", tools_module)
+    monkeypatch.setitem(sys.modules, "tools.diagnostic", diagnostic_module)
+
+    result = inspect_group_evidence(
+        [speech_group["group_id"]], len(events), boundary_radius=0
+    )
+
+    assert result["indices"] == [1]
+    assert result["evidence_view"]["sources"]["logcat"][0]["tag"] == "Speech"
 
 
 def test_inspect_group_evidence_keeps_runtime_sources_separate(monkeypatch):

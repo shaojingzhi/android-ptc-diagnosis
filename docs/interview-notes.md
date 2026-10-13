@@ -107,10 +107,10 @@ Logcat / KMessage
 
 2026-10-13 在本地 Android 15 / API 35 Emulator 上重新构建并安装 M1 Java-crash fixture。采集过程使用 unfiltered Logcat，先记录约 5 秒 idle baseline，再启动 `com.example.m1crash` 触发已知 `IllegalStateException`，随后保留 incident 和 post-failure 日志。设备时区为 `Asia/Shanghai`，三个阶段的设备时间边界均在触发前记录；原始日志保留在本机、未提交仓库。
 
-Deterministic pipeline 结果：
+Deterministic pipeline 的首次结果（修复 component-aware grouping 前）：
 
 - 549 raw lines / 549 normalized events，其中 545 条有 timestamp；4 条 Logcat buffer header 被宽容保留为无 timestamp event。
-- Drain3 得到 266 groups。
+- Drain3/compact 得到 266 groups。
 - 显式分类为 baseline 14、incident 371、unassigned 164；group metadata 汇总后仍严格等于 549。
 - `FATAL EXCEPTION`、`M1 deliberate Java crash` 和 `Caused by: IllegalStateException` 均可通过原始 event index 定位。
 - baseline 已存在重复 `BestClock`、`healthd` 和 `JobService` WARNING；post-failure 还出现与 fixture 无关的 `TaskPersister`、Google speech/network ERROR。这直接说明 ERROR/WARNING severity 不能替代 incident relevance 判断。
@@ -119,7 +119,22 @@ Deterministic pipeline 结果：
 
 1. `adb-agent` Logcat 行只有设备本地月日时间，现有 parser 生成 naive datetime；设备 `date` 边界带 `+0800`。incident helper 正确拒绝 naive/aware 混用。本次分析先核实设备时区，再显式使用 device-local naive 边界。最小后续修复应是在采集入口把已记录的设备时区附加到 Logcat timestamp，或统一规范化两侧时间，而不是静默丢弃时区。
 2. 当前 center + integer before/after window 不适合精确表达这次分别记录的毫秒级 baseline/incident 起止边界。本次直接从精确边界生成显式 indices。若继续产品化 real-log ingestion，最小扩展是增加 explicit start/end helper，不改变 compact 或诊断规则。
-3. Drain3 的全局 message template 会把不同 component 的通用 stack frame 合并。此次 `at <*>` group 共 58 条，实际来自 `AndroidRuntime`、launcher search、Google speech、TapAndPay 和 GLSUser 等多个 tag/level，但 group representative 显示为第一条 `AndroidRuntime/E`。这会污染 component attribution 和 baseline/incident comparison。最小修复范围是在 compact group identity 中加入 source + tag（或稳定 component）边界并补 deterministic regression tests；在修改冻结 benchmark 前应单独评估影响。
+3. Drain3 的全局 message template 会把不同 component 的通用 stack frame 合并。此次 `at <*>` group 共 58 条，实际来自 `AndroidRuntime`、launcher search、Google speech、TapAndPay 和 GLSUser 等多个 tag/level，但旧 group representative 只显示第一条 `AndroidRuntime/E`。Agent 因而可能把其他进程的 stack frames 误当作 crash component evidence，baseline/incident comparison 也会失真。
+
+最终修复没有修改 Drain3 算法，而是在所有消费方统一使用
+`source + tag + level + template_id` 作为 deterministic group identity：
+
+- 没有 tag/level 时，`None` 是明确的 identity component；没有 `template_id` 时按原始 event index 单独成组，避免 malformed lines 被意外合并。
+- compact、`group_by_template()`、fixed triage 的 representative/repeat count，以及 `inspect_group_evidence()` 的 group ID 解析共享同一语义。
+- 同组 PID 全部一致时才展示 PID；存在多个 PID 时返回 `null`，不再用第一条 PID 代表整组。
+- 每个 raw event 仍恰好属于一个 group，完整 provenance indices 保留。
+
+同一份本地 raw log 离线重放后，group count 从 266 变为 276；原 58 条
+`at <*>` 被拆为 `AndroidRuntime/E=18`、`OneSearchSuggestProvider/D=11`、
+`A/E=20`、`TapAndPay/W=5`、`GLSUser/W=4`。549 个 raw indices 均且仅归属
+一个 group，`FATAL EXCEPTION` 和两处 `M1 deliberate Java crash` 仍可定位。
+
+7 个现有 synthetic cases 的 group count 和 FIXED Top-3 在 deterministic 回归中没有变化。历史 experiment/trace 保持冻结；由于 group identity 语义已经变化，旧 trace 与未来包含跨 component 相同模板的数据不能按 group count 直接比较。
 
 完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
 

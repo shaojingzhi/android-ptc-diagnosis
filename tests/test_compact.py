@@ -10,6 +10,8 @@ from android_ptc_diag.compact import (
     evidence_recall,
 )
 from android_ptc_diag.execution import CompactDirectExecutor, MAX_TOOL_ROUNDS
+from android_ptc_diag.models import LogEvent
+from android_ptc_diag.primitives import group_by_template
 from scripts.eval_compact_direct import _tool_metrics
 
 
@@ -102,6 +104,74 @@ def test_compact_group_ids_are_stable_group_identity_not_event_indices():
     view = compact_model_view(compact)
     assert [group["group_id"] for group in view["groups"]] == list(range(13))
     assert all("indices" not in group for group in view["groups"])
+
+
+def test_group_identity_separates_source_tag_and_level_and_matches_primitive():
+    events = [
+        LogEvent(
+            source="logcat",
+            tag="AndroidRuntime",
+            level="E",
+            pid=10,
+            message="at x.y(Z.java:1)",
+        ),
+        LogEvent(
+            source="logcat",
+            tag="AndroidRuntime",
+            level="E",
+            pid=11,
+            message="at x.y(Z.java:2)",
+        ),
+        LogEvent(
+            source="logcat",
+            tag="Speech",
+            level="E",
+            pid=12,
+            message="at x.y(Z.java:3)",
+        ),
+        LogEvent(
+            source="logcat",
+            tag="AndroidRuntime",
+            level="W",
+            pid=10,
+            message="at x.y(Z.java:4)",
+        ),
+        LogEvent(
+            source="replay",
+            tag="AndroidRuntime",
+            level="E",
+            pid=10,
+            message="at x.y(Z.java:5)",
+        ),
+    ]
+    cluster_events(events)
+
+    compact = build_compact_evidence(events)
+    primitive = group_by_template(events)
+
+    assert len({event.template_id for event in events}) == 1
+    assert compact["groups"] == primitive["groups"]
+    assert [group["count"] for group in compact["groups"]] == [2, 1, 1, 1]
+    assert [event.repeat_count for event in events] == [2, 2, 1, 1, 1]
+    assert compact["groups"][0]["pid"] is None
+    assert [group["representative_index"] for group in compact["groups"]] == [0, 2, 3, 4]
+    owned = [index for group in compact["groups"] for index in group["indices"]]
+    assert sorted(owned) == list(range(len(events)))
+    assert len(owned) == len(set(owned))
+
+
+def test_missing_group_metadata_keeps_unclustered_events_separate():
+    events = [
+        LogEvent(source="logcat", message="malformed line"),
+        LogEvent(source="logcat", message="malformed line"),
+    ]
+
+    groups = build_compact_evidence(events)["groups"]
+
+    assert len(groups) == 2
+    assert [group["indices"] for group in groups] == [[0], [1]]
+    assert all(group["tag"] is None and group["level"] is None for group in groups)
+
 
 def test_compact_direct_prompt_contains_all_groups_without_ground_truth_labels():
     events = _clustered_events()

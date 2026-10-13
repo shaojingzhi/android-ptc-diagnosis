@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from typing import Any, Callable
 
+from .clustering import group_events_by_identity
 from .models import LogEvent
 
 
@@ -121,31 +122,18 @@ def group_by_template(
     events: list[LogEvent],
     indices: list[int] | None = None,
 ) -> dict[str, Any]:
-    groups: dict[str, dict[str, Any]] = {}
-    for index in _indices(events, indices):
-        event = events[index]
-        key = event.template_id or f"unclustered:{index}"
-        group = groups.setdefault(
-            key,
-            {"template_id": event.template_id, "template": event.template, "indices": []},
-        )
-        group["indices"].append(index)
-    values = []
-    for group in groups.values():
-        group["first_index"] = min(group["indices"])
-        group["last_index"] = max(group["indices"])
-        group["count"] = len(group["indices"])
-        values.append(group)
-    for group_id, group in enumerate(sorted(values, key=lambda item: item["first_index"])):
-        group["group_id"] = group_id
-    return {"groups": values, "count": len(values)}
+    groups = group_events_by_identity(events, _indices(events, indices))
+    return {"groups": groups, "count": len(groups)}
 
 
 def first_occurrence(
     events: list[LogEvent],
     indices: list[int] | None = None,
 ) -> dict[str, Any]:
-    groups = group_by_template(events, indices)["groups"]
+    selected = _indices(events, indices)
+    groups = group_by_template(events, selected)["groups"]
+    positions = {index: position for position, index in enumerate(selected)}
+    groups.sort(key=lambda group: min(positions[index] for index in group["indices"]))
     return _index_result([group["first_index"] for group in groups])
 
 

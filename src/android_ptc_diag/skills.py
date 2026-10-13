@@ -140,9 +140,9 @@ def inspect_group_evidence(
 ) -> dict[str, Any]:
     """Resolve compact group IDs and fetch bounded source-local evidence.
 
-    Group IDs are stable in normalized event order and are resolved through the
-    metadata-only ``group_by_template`` primitive. Raw records are still read
-    only through explicit bounded indices.
+    Group IDs use the same source/tag/level/template identity as the compact
+    model view and are resolved through the metadata-only ``group_by_template``
+    primitive. Raw records are still read only through explicit bounded indices.
     """
     if not isinstance(group_ids, list):
         raise ValueError("group_ids must be a list of integers")
