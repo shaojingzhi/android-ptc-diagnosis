@@ -166,6 +166,12 @@ Deterministic pipeline 的首次结果（修复 component-aware grouping 前）�
 
 候选的最小后续设计是 two-level evidence index：首轮只提供按 incident novelty、request overlap、时间邻近和 source/tag/level 多样性确定性选出的 bounded detailed groups；其余 group 保留在稳定 `group_id` 的 deferred index 中，通过一个 bounded read-only query 按需获取。不能硬编码 crash 字符串/ground-truth index，也不能只筛 ERROR。全部 545 events、raw-line provenance 和 indexed access 必须保留，并先用 evidence reachability、source/tag/level/phase coverage、100% provenance coverage、query bound、determinism 和 task bytes 做离线验收。完整分析见 [real-log-cost-attribution.md](real-log-cost-attribution.md)。
 
+随后实现了 opt-in 的最小 Two-level Evidence Index，默认 Compact-DIRECT 的 8-tool contract 和完整 compact prompt 保持不变。Level 1 使用四个通用且可审计的 selection reasons：`request_overlap`、`incident_phase`、`incident_time_proximity`、`source_tag_level_diversity`。Level 2 保留未展示的完整 groups，并增加只读 `query_deferred_groups`；它按全局 `group_id`、text、tag、source 或 phase 查询，最多返回 20 groups / 16,000 serialized bytes，不对子集重新编号，也不把 deferred groups 当作 noise。
+
+同一份脱敏 545-event snapshot 的纯离线结果为：首次 task 从 122,654 bytes 降至 21,824 bytes（减少 82.21%），32 个 detailed groups / 243 个 deferred groups；新增 tool schema 是 558 bytes。Level 1 覆盖唯一的 logcat source、全部 5 种 level、baseline/incident/unassigned 三种 phase，以及 97 个 tag 中的 25 个。545 个 event index 均且仅归属一个 detailed/deferred group，全局 group IDs 仍严格为 `0..274`，重复构建结果完全一致。
+
+这里必须区分 **reachability** 与 **discoverability**。评估用的三个已知 crash indices `119/121/136` 都仍可追溯；121 的 group 在 Level 1，119 和 136 在 deferred index。它们可以通过从 Level 1 已出现的 `AndroidRuntime` tag 发起通用 incident query 找到：该查询返回 7 groups / 2,447 bytes；target-package text query 返回 5 groups / 2,186 bytes。ground-truth indices 只用于事后评估，没有进入 selector。风险仍然存在：如果真正 evidence 与 request 没有词面重合、不靠近 incident time、也未被 diversity quota 选中，模型必须主动扩大查询；高基数 tag 和有界查询的截断也可能降低 discoverability。当前只证明 task-byte reduction、determinism 和 evidence reachability，尚未运行模型，因此不能声称实际 token 或 diagnosis accuracy 已改善。
+
 完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
 
 ## Known limitations

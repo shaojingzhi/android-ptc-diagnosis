@@ -5,7 +5,16 @@ import time
 from enum import StrEnum
 from typing import Any
 
-from .compact import build_compact_evidence, compact_model_view
+from .compact import (
+    DEFAULT_DETAILED_GROUP_LIMIT,
+    MAX_GROUP_QUERY_BYTES,
+    MAX_GROUP_QUERY_RESULTS,
+    build_compact_evidence,
+    build_two_level_evidence_index,
+    compact_model_view,
+    query_deferred_groups,
+    two_level_model_view,
+)
 from .models import DirectDiagnosis, DirectRunResult, DirectTrace, LogEvent, TriageRequest
 from .primitives import tool_definitions, tool_handlers
 
@@ -313,6 +322,115 @@ class CompactDirectExecutor(DirectExecutor):
             "specific indices when original event text is needed. Count is the group size; "
             "first_index and last_index bound its occurrences; representative_index is its "
             "first raw event. Do not assume the compact representation itself proves causality."
+        )
+        return instructions + "\n" + json.dumps(payload, ensure_ascii=False)
+
+
+class TwoLevelCompactDirectExecutor(CompactDirectExecutor):
+    """Opt-in Compact-DIRECT with bounded initial detail and deferred lookup."""
+
+    def __init__(
+        self,
+        *args: Any,
+        detailed_group_limit: int = DEFAULT_DETAILED_GROUP_LIMIT,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+        self.detailed_group_limit = detailed_group_limit
+        self.evidence_index: dict[str, Any] | None = None
+        self.tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "query_deferred_groups",
+                    "description": (
+                        "Read bounded compact summaries from groups omitted from the "
+                        "initial detailed evidence. Deferred groups are not noise."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "group_ids": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                            },
+                            "text": {"type": "string"},
+                            "tag": {"type": "string"},
+                            "source": {"type": "string"},
+                            "phase": {
+                                "type": "string",
+                                "enum": ["baseline", "incident", "unassigned"],
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": MAX_GROUP_QUERY_RESULTS,
+                            },
+                            "max_bytes": {
+                                "type": "integer",
+                                "minimum": 256,
+                                "maximum": MAX_GROUP_QUERY_BYTES,
+                            },
+                        },
+                    },
+                },
+            }
+        )
+
+    def _request_prompt(self, request: TriageRequest) -> str:
+        self.evidence_index = build_two_level_evidence_index(
+            self.events,
+            request,
+            baseline_indices=self.baseline_indices,
+            incident_indices=self.incident_indices,
+            detailed_group_limit=self.detailed_group_limit,
+        )
+        self.handlers["query_deferred_groups"] = lambda **kwargs: query_deferred_groups(
+            self.evidence_index, **kwargs
+        )
+        view = two_level_model_view(self.evidence_index)
+        payload = {
+            "symptom": request.symptom,
+            "target_package": request.target_package,
+            "failure_timestamp": request.failure_timestamp.isoformat()
+            if request.failure_timestamp
+            else None,
+            "raw_event_count": len(self.events),
+            "compact_group_count": view["group_count"],
+            "two_level_evidence": view,
+            "output_schema": {
+                "primary_candidate_indices": "list[int]",
+                "evidence_indices": "list[int]",
+                "propagation_event_indices": "list[int]",
+                "notes": "list[str]",
+            },
+        }
+        if self.baseline_indices is not None or self.incident_indices is not None:
+            baseline_count = len(set(self.baseline_indices or []))
+            incident_count = len(set(self.incident_indices or []))
+            payload.update(
+                {
+                    "target_component": request.target_component,
+                    "expected_behavior": request.expected_behavior,
+                    "observed_behavior": request.observed_behavior,
+                    "incident_context": {
+                        "incident_time": request.incident_time.isoformat()
+                        if request.incident_time
+                        else None,
+                        "baseline_event_count": baseline_count,
+                        "incident_event_count": incident_count,
+                        "unassigned_event_count": len(self.events)
+                        - baseline_count
+                        - incident_count,
+                    },
+                }
+            )
+        instructions = (
+            "Detailed evidence is a bounded deterministic index, not a complete "
+            "diagnosis and not a noise classifier. Deferred groups remain queryable "
+            "with query_deferred_groups using stable global group IDs. Expand the "
+            "search when the detailed groups do not explain the symptom, then use "
+            "get_events with specific indices for original normalized records."
         )
         return instructions + "\n" + json.dumps(payload, ensure_ascii=False)
 
