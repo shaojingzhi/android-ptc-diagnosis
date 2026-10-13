@@ -146,6 +146,20 @@ Deterministic pipeline 的首次结果（修复 component-aware grouping 前）�
 
 原始 crash evidence 仍可追溯，但 normalized index 因 header removal 合理变化：`FATAL EXCEPTION` 从 123 变为 119（raw line 124），两处 `M1 deliberate Java crash` 从 125/140 变为 121/136（raw lines 126/141）。这说明对外报告真实采集证据时应同时保留 raw line provenance 与 normalized index。
 
+## 第一次 locally reproduced real-log Agent smoke
+
+在 commit `53fb8a0` 上对上述 capture 做了一次且仅一次 Compact-DIRECT smoke。模型没有接收仓库外的原始文件：offline gate 先验证 raw SHA256、545 events、275 groups、`14 / 371 / 160` phase counts 和 crash indices，再生成 545-line sanitized JSONL 与 545-line index map。85 个 event message/template 发生 path/UUID/long-ID redaction，所有结构化 PID/TID 使用稳定 pseudonym；index map 仅保留 normalized index、raw line number 和原文/脱敏文本 SHA256。最终 model task 和 trace 均未包含 credential、host path、Android private path、邮箱、IP 或 UUID。
+
+冻结配置为 DeepSeek `deepseek-v4-pro`、temperature=0、thinking disabled；未启用 active diagnosis loop。唯一 run 的结果：
+
+- 3 model turns，2 tool-calling rounds，4 次 tool calls；全部是 indexed `get_events`，没有 full-log read，单次最大 15 records。
+- input/output/total tokens 为 `139,826 / 1,027 / 140,853`；总 latency `15.72s`。
+- primary indices 为 `121 / 136 / 137`，分别对应 Activity launch wrapper exception、`M1 deliberate Java crash` cause 和 `MainActivity.onCreate` stack frame；evidence 中同时引用 `FATAL EXCEPTION` index 119。
+- propagation indices 指向 crash reporting、force-finish、process death 和 launcher resume。所有 final indices 通过 range validation，run 没有 provider/tool error。
+- 模型没有把 baseline 的 `BestClock` warning 或 Google speech、TapAndPay 等无关 ERROR 当作 primary；它还明确把 `BestClock` 识别为 baseline background noise。
+
+这个 smoke 证明 real-log ingestion → incident-aware compact evidence → bounded indexed retrieval → valid diagnosis 的链路已闭环，但也暴露两个不能掩盖的问题：第一，122,654-byte / 275-group 初始 task 加上多轮 context 仍产生约 141k tokens；第二，模型 final notes 使用了 “Root cause” 和 “No environmental/system failure is implicated” 等过强措辞，超出项目偏好的 primary-candidate / evidence-bounded language。该结果按原样保留，不调 prompt、不重跑，也不覆盖历史 synthetic frozen benchmark。外部 trace 文件为 `compact-direct-trace-53fb8a0.jsonl`，SHA256 为 `3eab12983a4dd4243eb58749cc8d56eeb2858a3b602b68213e9e54fd24da5d46`。
+
 完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
 
 ## Known limitations
