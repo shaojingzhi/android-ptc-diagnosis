@@ -103,6 +103,25 @@ Logcat / KMessage
 
 真实日志中的另一个关键挑战是：**ERROR 不等于与当前故障相关**。长期存在的 ERROR、瞬时告警和 incident 附近新出现的信号必须结合显式 baseline、incident context 和 supporting evidence 判断，不能只按 severity 推断相关性或因果性。
 
+## 第一次 locally reproduced real-log validation
+
+2026-10-13 在本地 Android 15 / API 35 Emulator 上重新构建并安装 M1 Java-crash fixture。采集过程使用 unfiltered Logcat，先记录约 5 秒 idle baseline，再启动 `com.example.m1crash` 触发已知 `IllegalStateException`，随后保留 incident 和 post-failure 日志。设备时区为 `Asia/Shanghai`，三个阶段的设备时间边界均在触发前记录；原始日志保留在本机、未提交仓库。
+
+Deterministic pipeline 结果：
+
+- 549 raw lines / 549 normalized events，其中 545 条有 timestamp；4 条 Logcat buffer header 被宽容保留为无 timestamp event。
+- Drain3 得到 266 groups。
+- 显式分类为 baseline 14、incident 371、unassigned 164；group metadata 汇总后仍严格等于 549。
+- `FATAL EXCEPTION`、`M1 deliberate Java crash` 和 `Caused by: IllegalStateException` 均可通过原始 event index 定位。
+- baseline 已存在重复 `BestClock`、`healthd` 和 `JobService` WARNING；post-failure 还出现与 fixture 无关的 `TaskPersister`、Google speech/network ERROR。这直接说明 ERROR/WARNING severity 不能替代 incident relevance 判断。
+
+这次验证暴露了两个最小 ingestion gap：
+
+1. `adb-agent` Logcat 行只有设备本地月日时间，现有 parser 生成 naive datetime；设备 `date` 边界带 `+0800`。incident helper 正确拒绝 naive/aware 混用。本次分析先核实设备时区，再显式使用 device-local naive 边界。最小后续修复应是在采集入口把已记录的设备时区附加到 Logcat timestamp，或统一规范化两侧时间，而不是静默丢弃时区。
+2. 当前 center + integer before/after window 不适合精确表达这次分别记录的毫秒级 baseline/incident 起止边界。本次直接从精确边界生成显式 indices。若继续产品化 real-log ingestion，最小扩展是增加 explicit start/end helper，不改变 compact 或诊断规则。
+
+完整 raw log 的提交前扫描没有发现邮箱、IP、host 用户路径或 API credential，但包含 emulator 的随机安装路径、长数字标识和系统 `redacted-pii` 标记，因此没有把原始文件公开提交。未来若形成 replay case，应从原始文件生成单独的审查/脱敏副本，并标记 `locally_reproduced_real_log`，不得伪装为 production data。
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
