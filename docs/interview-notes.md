@@ -223,6 +223,42 @@ did not show a reduction. Frozen traces are in
 `experiments/runtime_service_unready_baseline_trace.jsonl` and
 `experiments/runtime_service_unready_failure_context_trace.jsonl`.
 
+### Tool semantic interface experiment
+
+The team evaluated whether semantic tool contracts improve tool selection without adding
+deterministic routing rules. At implementation commit `aa99c68`, one A/B run per arm used
+`runtime_service_unready_001`, Compact-DIRECT, DeepSeek `deepseek-v4-pro`, temperature 0, and
+thinking disabled. Both arms exposed the same eight tools with byte-identical names and parameter
+schemas; only their description strings differed. The unified tool surface was an evaluation-only
+harness and did not change production orchestration.
+
+| Arm | Top-1 / Top-3 | Turns | Tool calls | Input / output / total tokens | Latency |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Current descriptions | true / true | 7 | 16 | 36,291 / 1,660 / 37,951 | 27.71s |
+| Semantic descriptions | true / true | 6 | 17 | 33,937 / 1,582 / 35,519 | 25.95s |
+
+The first tool remained `get_events` in both arms, so richer descriptions did not make the
+higher-level primitive the initial evidence operation. They did change its timing: the current-
+description arm called `inspect_failure_context` twice as calls 15 and 16, after broad group and
+runtime-state exploration; the semantic arm called it once as call 2, immediately after the first
+indexed read. Duplicate materialized event references fell from 25 to 6, model turns fell from 7
+to 6, and total tokens/latency each fell about 6.4%. This was not a general tool-efficiency win:
+total calls increased from 16 to 17, and both arms produced eight invalid runtime-state locator
+requests.
+
+Both diagnoses kept Top-1/Top-3 correct. The semantic arm returned only index 1 as primary,
+whereas the baseline also promoted KMessage supporting evidence 24/25 to primary candidates;
+both returned the same evidence indices and empty `uncertainties` / `recommended_next_checks`.
+Safety was mixed. Neither arm requested remediation, and the baseline explicitly preserved unknown
+cross-source ordering. The semantic arm instead ended with “Causality is inferred” and treated a
+missing replay record as evidence that `vendor_bridge` was unavailable, which exceeds the intended
+evidence boundary. Therefore the supported conclusion is narrow: semantic descriptions changed
+selection timing and reduced duplicate materialization in this run, but did not reduce total tool
+calls or reliably preserve causal language. One run per arm cannot establish a stable model effect.
+Frozen traces are in
+`experiments/runtime_service_unready_tool_description_baseline_trace.jsonl` and
+`experiments/runtime_service_unready_tool_description_semantic_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
