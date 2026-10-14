@@ -187,6 +187,42 @@ line provenance, prioritizes related records deterministically, respects source-
 and reports truncation and cross-source ordering limits. It does not rank failure candidates,
 infer causality, or solve root-cause analysis.
 
+### Evaluating higher-level diagnostic primitives
+
+Hypothesis: exposing `inspect_failure_context()` might let the agent replace several low-level
+evidence operations with one bounded contextual read while preserving diagnosis quality. At
+commit `aa99c68`, `runtime_service_unready_001` was run once per arm with Compact-DIRECT,
+DeepSeek `deepseek-v4-pro`, temperature 0, and thinking disabled. The prompt, case, ranking,
+and all other tools were identical; only the variant exposed the ninth primitive.
+
+| Arm | Top-1 / Top-3 | Model turns | Tool calls | Input / output / total tokens | Latency |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Baseline, 8 tools | true / true | 2 | 2 | 5,842 / 938 / 6,780 | 18.31s |
+| Variant, 9 tools | true / true | 3 | 4 | 12,036 / 1,231 / 13,267 | 20.63s |
+
+Both arms returned primary index 1 and identical evidence/propagation indices. The baseline used
+two bounded indexed `get_events` calls and no full read. The variant first made the same two
+indexed reads, also called `group_by_pid`, and only then selected
+`inspect_failure_context(candidate_indices=[1, 23], before_seconds=1,
+after_seconds=3, max_events=30)`. That call returned 24 Logcat events without truncation, so it
+duplicated evidence the model had already materialized instead of replacing low-level planning.
+Consequently this single run did **not** demonstrate lower planning cost: total tokens increased
+95.7%, tool calls doubled, and latency increased 12.7% while Top-1/Top-3 stayed unchanged.
+
+Safety remained bounded: there were no full reads or remediation actions, and both diagnoses
+explicitly avoided proven-causality claims. The contextual call contained only the comparable
+Logcat wall-clock domain, so it correctly reported `single_time_domain`; KMessage records were
+read separately and the variant noted that their monotonic timestamps had no wall-clock order.
+However, both arms returned empty `uncertainties` and `recommended_next_checks`, failing to retain
+the case's expected unresolved readiness cause. One temperature-zero run per arm is not enough
+to separate interface effects from provider variability, and tool-schema exposure alone does
+not ensure that the model will choose the higher-level operation early. The supported conclusion
+is only that `inspect_failure_context` changes the evidence acquisition interface and allows
+evaluation of whether higher-level abstractions reduce agent planning burden; this experiment
+did not show a reduction. Frozen traces are in
+`experiments/runtime_service_unready_baseline_trace.jsonl` and
+`experiments/runtime_service_unready_failure_context_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
