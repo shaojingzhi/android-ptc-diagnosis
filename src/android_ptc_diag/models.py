@@ -202,6 +202,136 @@ class SimplifiedDiagnosis(BaseModel):
                     raise ValueError(f"invalid {field} entity reference: {reference.id}")
 
 
+class EvidenceSubject(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["event", "process", "service", "mount", "cgroup"]
+    id: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_identity_format(self) -> EvidenceSubject:
+        prefix, separator, value = self.id.partition(":")
+        if prefix != self.type or not separator or not value:
+            raise ValueError(
+                f"subject id must use the '{self.type}:<identifier>' format"
+            )
+        if self.type == "event" and not value.isdigit():
+            raise ValueError("event subject id must contain a numeric index")
+        return self
+
+
+class EvidenceObservation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    field: str = Field(min_length=1)
+    value: Any
+
+
+class EvidenceItem(BaseModel):
+    """Typed, inspectable evidence without semantic-entailment claims."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_id: str = Field(min_length=1)
+    source_type: Literal["log_event", "runtime_state", "entity"]
+    subject: EvidenceSubject
+    observation: EvidenceObservation | None = None
+
+    @model_validator(mode="after")
+    def require_observation_for_observed_sources(self) -> EvidenceItem:
+        if self.source_type in {"log_event", "runtime_state"} and self.observation is None:
+            raise ValueError(f"{self.source_type} evidence requires an observation")
+        return self
+
+
+class EvidenceItemClaim(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    statement: str = Field(min_length=1)
+    type: Literal["observation", "hypothesis"]
+    evidence_refs: list[str] = Field(min_length=1)
+    confidence: Literal["low", "medium", "high"] | None = None
+    missing_evidence: list[str] = Field(default_factory=list)
+
+
+class StructuredEvidenceDiagnosis(BaseModel):
+    """Simplified diagnosis with an additive EvidenceItem registry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_items: list[EvidenceItem] = Field(min_length=1)
+    claims: list[EvidenceItemClaim] = Field(min_length=1)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
+    recommended_next_checks: list[str] = Field(default_factory=list)
+
+    def validate_evidence_items(
+        self, event_count: int, runtime_state: dict[str, Any]
+    ) -> None:
+        if event_count < 0:
+            raise ValueError("event_count must be non-negative")
+        evidence_by_id: dict[str, EvidenceItem] = {}
+        for item_index, item in enumerate(self.evidence_items):
+            if item.evidence_id in evidence_by_id:
+                raise ValueError(f"duplicate evidence_id: {item.evidence_id}")
+            evidence_by_id[item.evidence_id] = item
+            self._validate_item_identity(item, item_index, event_count, runtime_state)
+
+        for claim_index, claim in enumerate(self.claims):
+            for evidence_id in claim.evidence_refs:
+                if evidence_id not in evidence_by_id:
+                    raise ValueError(
+                        f"unknown claims[{claim_index}].evidence_refs id: {evidence_id}"
+                    )
+
+    @staticmethod
+    def _validate_item_identity(
+        item: EvidenceItem,
+        item_index: int,
+        event_count: int,
+        runtime_state: dict[str, Any],
+    ) -> None:
+        field = f"evidence_items[{item_index}]"
+        subject_type = item.subject.type
+        subject_id = item.subject.id
+        if item.source_type == "log_event":
+            prefix, separator, value = item.evidence_id.partition(":")
+            if prefix != "event" or not separator or not value.isdigit():
+                raise ValueError(f"invalid {field} log event evidence_id: {item.evidence_id}")
+            if int(value) >= event_count:
+                raise ValueError(f"invalid {field} log event evidence_id: {item.evidence_id}")
+            if subject_type == "event" and subject_id != item.evidence_id:
+                raise ValueError(f"invalid {field} event subject identity: {subject_id}")
+            if subject_type != "event":
+                _validate_runtime_subject(subject_type, subject_id, runtime_state, field)
+            return
+
+        if subject_type == "event":
+            raise ValueError(f"invalid {field} subject for {item.source_type}: {subject_id}")
+        if item.source_type == "entity" and subject_type == "cgroup":
+            raise ValueError(f"invalid {field} entity subject: {subject_id}")
+        _validate_runtime_subject(subject_type, subject_id, runtime_state, field)
+
+
+def _validate_runtime_subject(
+    subject_type: str,
+    subject_id: str,
+    runtime_state: dict[str, Any],
+    field: str,
+) -> None:
+    collections = {
+        "process": "processes",
+        "service": "services",
+        "mount": "mounts",
+        "cgroup": "cgroups",
+    }
+    collection = collections.get(subject_type)
+    if collection is None:
+        raise ValueError(f"invalid {field} subject identity: {subject_id}")
+    identifier = subject_id.partition(":")[2]
+    if identifier not in _runtime_identifiers(runtime_state, collection, subject_type):
+        raise ValueError(f"invalid {field} subject identity: {subject_id}")
+
+
 def _runtime_identifiers(
     runtime_state: dict[str, Any], collection: str, entity_type: str
 ) -> list[str]:
