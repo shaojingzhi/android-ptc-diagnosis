@@ -8,7 +8,7 @@ import math
 from typing import Any, Callable
 
 from .clustering import group_events_by_identity
-from .models import LogEvent
+from .models import EntityReference, LogEvent
 
 
 def _indices(events: list[LogEvent], selected: list[int] | None) -> list[int]:
@@ -330,8 +330,17 @@ def discover_runtime_entities(
         attributes = entries[identifier]
         if not isinstance(attributes, dict):
             raise ValueError(f"invalid {entity_type} state: {identifier}")
+        entity_ref = EntityReference(
+            entity_type=entity_type,
+            entity_id=f"{entity_type}:{identifier}",
+            canonical_name=identifier,
+        )
         entities.append(
-            {identifier_field: identifier, "attributes": dict(attributes)}
+            {
+                identifier_field: identifier,
+                "entity_ref": entity_ref.model_dump(),
+                "attributes": dict(attributes),
+            }
         )
     return {
         "entity_type": entity_type,
@@ -339,6 +348,70 @@ def discover_runtime_entities(
         "count": len(entities),
         "read_only": True,
     }
+
+
+def _resolve_entity_reference(
+    runtime_state: dict[str, Any],
+    entity_ref: EntityReference | dict[str, Any],
+    expected_type: str,
+) -> str:
+    try:
+        reference = EntityReference.model_validate(entity_ref)
+    except Exception as exc:
+        raise ValueError(f"invalid entity reference: {exc}") from None
+    if reference.entity_type != expected_type:
+        raise ValueError(
+            f"entity reference type mismatch: expected {expected_type}, "
+            f"got {reference.entity_type}"
+        )
+
+    collection = {
+        "process": "processes",
+        "service": "services",
+        "mount": "mounts",
+    }[expected_type]
+    entries = runtime_state.get(collection)
+    if not isinstance(entries, dict):
+        raise ValueError(f"invalid {expected_type} state collection")
+    matches = [
+        identifier
+        for identifier in entries
+        if reference.entity_id == f"{expected_type}:{identifier}"
+    ]
+    if len(matches) != 1:
+        raise ValueError(f"unknown {expected_type} entity reference: {reference.entity_id}")
+
+    identifier = matches[0]
+    if reference.canonical_name is not None and reference.canonical_name != identifier:
+        raise ValueError(
+            f"entity reference canonical name mismatch: expected {identifier}, "
+            f"got {reference.canonical_name}"
+        )
+    return identifier
+
+
+def inspect_process_state_by_ref(
+    runtime_state: dict[str, Any], *, entity_ref: EntityReference | dict[str, Any]
+) -> dict[str, Any]:
+    """Read one replay process selected by a validated canonical reference."""
+    name = _resolve_entity_reference(runtime_state, entity_ref, "process")
+    return inspect_process_state(runtime_state, name=name)
+
+
+def inspect_service_state_by_ref(
+    runtime_state: dict[str, Any], *, entity_ref: EntityReference | dict[str, Any]
+) -> dict[str, Any]:
+    """Read one replay service selected by a validated canonical reference."""
+    name = _resolve_entity_reference(runtime_state, entity_ref, "service")
+    return inspect_service_state(runtime_state, name=name)
+
+
+def inspect_mount_state_by_ref(
+    runtime_state: dict[str, Any], *, entity_ref: EntityReference | dict[str, Any]
+) -> dict[str, Any]:
+    """Read one replay mount selected by a validated canonical reference."""
+    path = _resolve_entity_reference(runtime_state, entity_ref, "mount")
+    return inspect_mount_state(runtime_state, path=path)
 
 
 def inspect_process_state(

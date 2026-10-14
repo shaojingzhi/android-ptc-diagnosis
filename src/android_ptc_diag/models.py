@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LogEvent(BaseModel):
@@ -66,6 +66,16 @@ class DirectDiagnosis(BaseModel):
     uncertainties: list[str] = Field(default_factory=list)
     recommended_next_checks: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+class EntityReference(BaseModel):
+    """Evaluation-only canonical reference to replay-backed runtime state."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entity_type: Literal["process", "service", "mount"]
+    entity_id: str
+    canonical_name: str | None = None
 
 
 class FollowupRequest(BaseModel):
