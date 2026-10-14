@@ -259,6 +259,53 @@ Frozen traces are in
 `experiments/runtime_service_unready_tool_description_baseline_trace.jsonl` and
 `experiments/runtime_service_unready_tool_description_semantic_trace.jsonl`.
 
+### Identity discovery experiment
+
+Adding state-inspection tools increases capability, but the model still needs to know which
+runtime identifiers are valid. `discover_runtime_entities(entity_type=...)` separates entity
+resolution from entity inspection: it returns only canonical process names/PIDs, service names,
+or mount paths present in the replay state, with their attributes and `read_only=true`. It does
+not create aliases, infer absent entities, or return diagnosis fields.
+
+The hypothesis was that optional identity discovery could reduce invalid locator guesses without
+changing diagnosis semantics. At implementation commit `ec3f85b`,
+`runtime_service_unready_001` was run once per arm with Compact-DIRECT, DeepSeek
+`deepseek-v4-pro`, temperature 0, and thinking disabled. Both arms reused the same prompt and the
+same eight existing tools; the variant only added the discovery tool. There was no routing rule or
+instruction telling the model to call it.
+
+| Arm | Top-1 / Top-3 | Turns | Tool calls | Unknown locator errors | Input / output / total tokens | Latency |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline, 8 tools | true / true | 5 | 11 | 6 | 26,782 / 1,181 / 27,963 | 20.97s |
+| Variant, 9 tools | false / false | 7 | 17 | 4 | 28,314 / 1,226 / 29,540 | 21.93s |
+
+The baseline guessed six unavailable identifiers, including `RuntimeService`, two absent PIDs,
+the target package as a process name, and `vendor_bridge` as both service and process. It still
+completed with primary index 1 and a valid evidence-bounded diagnosis. The variant first guessed
+the nonexistent service `runtime`, then discovered the canonical service `runtime_service` and
+successfully inspected it. It subsequently discovered the sole process (`runtime_service`, PID
+2600) and mount (`/container/runtime`) and successfully inspected the canonical mount path.
+Discovery therefore reduced unknown-locator errors from 6 to 4 and demonstrated that returned
+canonical identities were usable.
+
+That partial identity improvement did not improve the run overall. The model called discovery
+three times, continued guessing absent `vendor_bridge` and PID 2500, expanded into filter,
+context, cgroup, and mount checks, and requested another tool round after the six-round budget.
+The controller stopped it without a final diagnosis. Compared with baseline, tool calls rose by
+6, turns by 2, total tokens by 1,577 (5.6%), and latency by 0.96s (4.6%). Thus this single A/B run
+does **not** support claiming that identity discovery improved diagnosis quality or efficiency.
+It shows a narrower result: discovery can resolve canonical query targets when selected, but
+capability availability alone does not ensure discovery-before-inspection or bounded planning.
+
+Safety conclusions are also limited. The discovery responses contained only fixture-backed
+entities and read-only state, so the primitive itself neither invented entities nor enabled
+remediation. The baseline final diagnosis avoided a proven-causality claim. The variant produced
+no final diagnosis, so causal-language and remediation safety cannot be evaluated from its output;
+the model's remaining invalid guesses must not be mistaken for discovered entities. With only one
+run per arm, provider variability is not separable from the interface effect. Frozen traces are in
+`experiments/runtime_service_unready_identity_discovery_baseline_trace.jsonl` and
+`experiments/runtime_service_unready_identity_discovery_variant_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
