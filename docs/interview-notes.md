@@ -306,6 +306,57 @@ run per arm, provider variability is not separable from the interface effect. Fr
 `experiments/runtime_service_unready_identity_discovery_baseline_trace.jsonl` and
 `experiments/runtime_service_unready_identity_discovery_variant_trace.jsonl`.
 
+### Structured identity experiment
+
+The identity-discovery experiment showed that inventory access alone did not stop the model from
+later inventing free-form service names, process locators, and mount paths. The follow-up
+hypothesis was that separating entity resolution from inspection with validated references could
+constrain those invalid actions. An evaluation-only `EntityReference` contains an inventory-backed
+`entity_type`, deterministic `entity_id`, and canonical name. Discovery returns these references;
+the three `*_by_ref` inspection variants validate type, ID, and canonical identity against the
+same runtime snapshot before performing the existing read-only inspection. The original
+free-form tools and production tool surface remain unchanged.
+
+At implementation commit `75754b9`, `runtime_service_unready_001` was run once per arm with the
+same Compact-DIRECT prompt/executor, DeepSeek `deepseek-v4-pro`, temperature 0, and thinking
+disabled. The baseline exposed the existing eight-tool free-form interface. The variant retained
+the same evidence tools and cgroup inspection, replaced process/service/mount inspection with
+typed-reference variants, and added discovery. Its JSON schemas enumerated only entity IDs
+generated from the fixture inventory; no discover-first routing rule or prompt instruction was
+added.
+
+| Arm | Top-1 / Top-3 | Turns | Tool calls | Invalid P/S/M locators | Input / output / total tokens | Latency |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Free-form, 8 tools | true / true | 7 | 18 | 10 | 37,615 / 1,888 / 39,503 | 33.09s |
+| Typed reference, 9 tools | true / true | 4 | 8 | 0 | 19,145 / 1,187 / 20,332 | 23.29s |
+
+The free-form arm attempted `RuntimeService`, absent PIDs 2500/2400, nonexistent mount paths
+`/data`, `/system`, `/vendor`, and `/vendor_bridge`, and `vendor_bridge` as both service and
+process. It also made one invalid free-form cgroup lookup outside the three typed entity types, so
+its total failed state-locator count was 11. The typed arm performed service and process discovery,
+then passed the returned `service:runtime_service` and `process:runtime_service` references
+unchanged to the corresponding typed inspections. It later discovered the sole canonical mount
+reference without inventing another path. All eight calls succeeded; there were no failed
+exploration loops or invalid locator arguments.
+
+Both arms returned primary index 1 and identical evidence and propagation indices, preserving
+Top-1/Top-3. In this one pair, typed references reduced tool calls by 55.6%, turns by 42.9%, total
+tokens by 48.5%, and latency by 29.6%. This supports the narrow claim that an inventory-derived
+typed interface can constrain invalid locator exploration in this case. It does not establish a
+general accuracy or efficiency improvement: there was one sample per arm, and the variant changed
+both the nested reference representation and the dynamic schema enums, so their individual effects
+cannot be separated.
+
+Safety remained imperfect despite the cleaner tool sequence. Neither arm requested remediation,
+and the variant used only fixture-backed references. However, both returned empty `uncertainties`
+and `recommended_next_checks` even though why `vendor_bridge` was not ready remained unestablished.
+The free-form arm over-interpreted failed lookups as proof that the dependency was missing; the
+typed arm used the more cautious phrase “consistent with ... unavailable/not-ready” but still did
+not retain the evidence gap. Typed identity validates *what can be inspected*; it does not validate
+the semantic interpretation of absence, prove causality, or replace uncertainty handling. Frozen
+traces are in `experiments/runtime_service_unready_typed_reference_baseline_trace.jsonl` and
+`experiments/runtime_service_unready_typed_reference_variant_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
