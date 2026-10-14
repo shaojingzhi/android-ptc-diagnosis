@@ -410,6 +410,58 @@ read-only checks—not automatic or proven root-cause discovery. Frozen traces a
 `experiments/runtime_service_unready_grounded_contract_baseline_trace.jsonl` and
 `experiments/runtime_service_unready_grounded_contract_variant_trace.jsonl`.
 
+### Simplified evidence-grounded diagnosis contract experiment
+
+The rich claim contract made observations, inferences, hypotheses, confidence, missing evidence,
+and validation directions explicit, but its first evaluation never reached a final response. A
+smaller evaluation contract therefore kept only observation/hypothesis claims, generic evidence
+references, separate evidence gaps, and next checks. A generic reference can identify a normalized
+log event, replay runtime-state record, or canonical entity. Deterministic validation checks the
+reference format and verifies it against event bounds or the runtime inventory; it does not judge
+whether the referenced evidence semantically entails the statement.
+
+At implementation commit `abee638`, `runtime_service_unready_001` was run once per arm with the
+same typed-reference nine-tool surface, Compact-DIRECT evidence, system instructions, executor,
+DeepSeek `deepseek-v4-pro`, temperature 0, and thinking disabled. The only prompt difference was
+the requested final schema: 3,375 task bytes for the rich contract and 3,122 for the simplified
+contract. Hypothesis generation remained available in both arms.
+
+| Contract | Final / schema valid | Turns | Tool calls | Input / output / total tokens | Latency |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Rich | no / no | 7 | 15 | 46,051 / 1,284 / 47,335 | 19.93s |
+| Simplified | yes / yes | 5 | 13 | 23,718 / 2,078 / 25,796 | 29.57s |
+
+The rich arm completed all six permitted tool rounds without tool errors, then requested a seventh
+round and was stopped before returning claims. It therefore has no completion, grounding, or
+hypothesis-quality score. The simplified arm returned after four tool rounds. It produced eight
+claims—five observations and three hypotheses—and all eight had structurally valid references;
+the reference validator found zero invalid IDs. It preserved three evidence gaps and five read-only
+next checks. Total tokens were 45.5% lower and model turns fell from seven to five in this pair.
+Latency was higher despite completion, so it does not support a latency-efficiency claim. The run
+also made two invalid free-form cgroup probes (`vendor_bridge` and `container`) before finishing;
+the simpler output contract did not solve all tool-planning errors.
+
+Manual semantic audit is less favorable than the structural 100% grounding number. One observation
+correctly cited the runtime-service entity for readiness state but also mentioned PID without a
+process-state reference. Another cited the running process and then embedded the inference that it
+was “stuck waiting on its dependency” inside an observation. In other words, typed references
+validated identity, not entailment, and the model could still mix interpretation into a fact. Of
+the three hypotheses, the medium-confidence `vendor_bridge` readiness hypothesis was useful and
+preserved its missing evidence; treating Binder failures as propagation was also diagnostically
+useful, though its statement remained categorical. The low-confidence ThermalHAL hypothesis was
+weak and generated a correspondingly low-value next check. The output did not preserve the known
+KMessage/Logcat cross-source ordering gap.
+
+This one pair supports a narrow completion result: the simplified contract produced a valid final
+where the rich contract did not, with fewer turns and tokens. It does not prove that simplification
+generally improves reasoning quality. One run cannot separate provider variability from schema
+effects, and a structurally valid reference can still be semantically incomplete or attached to a
+misclassified claim. The useful design target is therefore not maximal metadata or minimal fields
+at any cost, but the smallest contract that keeps hypotheses, explicit evidence gaps, and actionable
+validation while remaining usable by the agent. Frozen traces are in
+`experiments/runtime_service_unready_simplified_contract_rich_trace.jsonl` and
+`experiments/runtime_service_unready_simplified_contract_variant_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
