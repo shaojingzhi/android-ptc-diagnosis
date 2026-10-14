@@ -357,6 +357,59 @@ the semantic interpretation of absence, prove causality, or replace uncertainty 
 traces are in `experiments/runtime_service_unready_typed_reference_baseline_trace.jsonl` and
 `experiments/runtime_service_unready_typed_reference_variant_trace.jsonl`.
 
+### Evidence-grounded diagnosis contract experiment
+
+Earlier iterations improved evidence retrieval and locator reliability, but they did not ensure
+that final language preserved the difference between a fact, an interpretation, and a useful
+debugging hypothesis. The evaluation-only contract therefore represents each claim with a
+`statement`, `status` (`observation`, `inference`, or `hypothesis`), and non-empty event
+`evidence_refs`. Inferences also require a reasoning summary. Hypotheses require an evidence-support
+level (`low`, `medium`, or `high`), explicit missing evidence, and suggested validation. Separate
+evidence-gap records state the open question and what evidence is absent. Deterministic validation
+rejects missing required fields and out-of-range event references; it intentionally does not claim
+to decide whether evidence semantically entails a statement.
+
+At implementation commit `ac16e66`, `runtime_service_unready_001` was run once per arm with the
+same typed-reference nine-tool surface, Compact-DIRECT evidence, system instructions, executor,
+DeepSeek `deepseek-v4-pro`, temperature 0, and thinking disabled. The compact task was byte-identical
+except for `output_schema`: 2,918 bytes for the existing `DirectDiagnosis` contract and 3,375 bytes
+for the structured contract. No prompt tuning or discover/inspect routing was added.
+
+| Contract | Top-1 / Top-3 | Turns | Tool calls | Input / output / total tokens | Latency | Final diagnosis |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Existing free text | true / true | 6 | 14 | 38,594 / 1,934 / 40,528 | 29.87s | valid |
+| Evidence-grounded | false / false | 7 | 13 | 47,534 / 1,266 / 48,800 | 20.50s | none; round limit |
+
+The baseline correctly selected primary index 1 and produced four uncertainties and four next
+checks. It explicitly noted the missing `vendor_bridge` record and unknown KMessage/Logcat clock
+alignment. However, its notes simultaneously called `vendor_bridge` the “root blocker,” said the
+probe events “confirm” that explanation, and claimed mount and memory evidence ruled out those
+causes. Those statements are stronger than the available replay evidence. The current format has
+no machine-readable claim/evidence relation, so a comparable grounding percentage cannot be
+computed without retrospective human labeling; textual index mentions are not equivalent to
+structured evidence references. Its useful dependency hypothesis also remained mixed into prose
+rather than being explicitly labeled with missing evidence and validation.
+
+The structured arm gathered relevant log, service, process, mount, and cgroup evidence without
+locator errors, but it never emitted a final contract. On its sixth tool round it called
+`inspect_group_evidence(group_ids=[0,6,7], event_count=3)`, confusing the selected group count with
+the 26-event replay size; the deterministic tool rejected the call. The next model invocation
+requested another tool round, so the six-round safety cap stopped the run. Consequently there are
+no structured claims to score, no grounded-claim percentage, and no hypothesis-quality result.
+Its 20.4% higher total-token use reflects the extra accumulated turn/context; its lower latency is
+not a diagnosis-efficiency win because the run ended without a final answer.
+
+This negative result does not show that claim typing worsens reasoning, nor that it improves it.
+It shows that a richer final schema can coexist with a new planning failure and may increase the
+burden of reaching a final response. One run cannot separate provider variability from contract
+effects, and event-only references still cannot directly identify runtime-state tool results.
+Future work would need an independently justified evidence-reference model and broader evaluation,
+not case-specific prompt tuning or a rerun of this sample. The project goal remains reliable
+debugging assistance: confirmed facts, plausible hypotheses, explicit unknowns, and actionable
+read-only checks—not automatic or proven root-cause discovery. Frozen traces are in
+`experiments/runtime_service_unready_grounded_contract_baseline_trace.jsonl` and
+`experiments/runtime_service_unready_grounded_contract_variant_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
