@@ -309,6 +309,38 @@ def _inspect_runtime_entry(
     return {label: key, **value, "read_only": True}
 
 
+def discover_runtime_entities(
+    runtime_state: dict[str, Any], *, entity_type: str
+) -> dict[str, Any]:
+    """List canonical read-only runtime-state targets without interpreting them."""
+    collections = {
+        "process": ("processes", "name"),
+        "service": ("services", "name"),
+        "mount": ("mounts", "path"),
+    }
+    if entity_type not in collections:
+        raise ValueError(f"unsupported runtime entity type: {entity_type}")
+    collection, identifier_field = collections[entity_type]
+    entries = runtime_state.get(collection, {})
+    if not isinstance(entries, dict):
+        raise ValueError(f"invalid {entity_type} state collection")
+
+    entities = []
+    for identifier in sorted(entries):
+        attributes = entries[identifier]
+        if not isinstance(attributes, dict):
+            raise ValueError(f"invalid {entity_type} state: {identifier}")
+        entities.append(
+            {identifier_field: identifier, "attributes": dict(attributes)}
+        )
+    return {
+        "entity_type": entity_type,
+        "entities": entities,
+        "count": len(entities),
+        "read_only": True,
+    }
+
+
 def inspect_process_state(
     runtime_state: dict[str, Any], *, name: str | None = None, pid: int | None = None
 ) -> dict[str, Any]:
