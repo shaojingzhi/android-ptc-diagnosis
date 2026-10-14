@@ -135,6 +135,82 @@ class EvidenceGroundedDiagnosis(BaseModel):
                     )
 
 
+class EvidenceReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_type: Literal["log_event", "runtime_state", "entity"]
+    id: str = Field(min_length=1)
+
+
+class SimplifiedClaim(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    statement: str = Field(min_length=1)
+    type: Literal["observation", "hypothesis"]
+    evidence_refs: list[EvidenceReference] = Field(min_length=1)
+    confidence: Literal["low", "medium", "high"] | None = None
+    missing_evidence: list[str] = Field(default_factory=list)
+
+
+class SimplifiedDiagnosis(BaseModel):
+    """Minimal evidence-grounded output for evaluation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    claims: list[SimplifiedClaim] = Field(min_length=1)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
+    recommended_next_checks: list[str] = Field(default_factory=list)
+
+    def validate_evidence_references(
+        self, event_count: int, runtime_state: dict[str, Any]
+    ) -> None:
+        if event_count < 0:
+            raise ValueError("event_count must be non-negative")
+        collections = {
+            "process": "processes",
+            "service": "services",
+            "mount": "mounts",
+            "cgroup": "cgroups",
+        }
+        runtime_ids = {
+            f"{entity_type}:{identifier}"
+            for entity_type, collection in collections.items()
+            for identifier in _runtime_identifiers(runtime_state, collection, entity_type)
+        }
+        entity_ids = {
+            value for value in runtime_ids if not value.startswith("cgroup:")
+        }
+
+        for claim_index, claim in enumerate(self.claims):
+            for reference in claim.evidence_refs:
+                field = f"claims[{claim_index}].evidence_refs"
+                if reference.source_type == "log_event":
+                    prefix, separator, value = reference.id.partition(":")
+                    if prefix != "event" or not separator or not value.isdigit():
+                        raise ValueError(f"invalid {field} log event reference: {reference.id}")
+                    index = int(value)
+                    if index >= event_count:
+                        raise ValueError(
+                            f"invalid {field} log event reference: {reference.id}"
+                        )
+                elif reference.source_type == "runtime_state":
+                    if reference.id not in runtime_ids:
+                        raise ValueError(
+                            f"invalid {field} runtime state reference: {reference.id}"
+                        )
+                elif reference.id not in entity_ids:
+                    raise ValueError(f"invalid {field} entity reference: {reference.id}")
+
+
+def _runtime_identifiers(
+    runtime_state: dict[str, Any], collection: str, entity_type: str
+) -> list[str]:
+    entries = runtime_state.get(collection, {})
+    if not isinstance(entries, dict):
+        raise ValueError(f"invalid {entity_type} state collection")
+    return list(entries)
+
+
 class EntityReference(BaseModel):
     """Evaluation-only canonical reference to replay-backed runtime state."""
 
