@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LogEvent(BaseModel):
@@ -66,6 +66,73 @@ class DirectDiagnosis(BaseModel):
     uncertainties: list[str] = Field(default_factory=list)
     recommended_next_checks: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+class DiagnosisClaim(BaseModel):
+    """One evidence-grounded observation, inference, or debugging hypothesis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    statement: str = Field(min_length=1)
+    status: Literal["observation", "inference", "hypothesis"]
+    evidence_refs: list[int]
+    reasoning_summary: str | None = None
+    confidence: Literal["low", "medium", "high"] | None = None
+    missing_evidence: list[str] = Field(default_factory=list)
+    suggested_validation: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_claim_contract(self) -> DiagnosisClaim:
+        if not self.evidence_refs:
+            raise ValueError(f"{self.status} requires evidence_refs")
+        if self.status == "inference" and not self.reasoning_summary:
+            raise ValueError("inference requires reasoning_summary")
+        if self.status == "hypothesis":
+            if self.confidence is None:
+                raise ValueError("hypothesis requires confidence")
+            if not self.missing_evidence:
+                raise ValueError("hypothesis requires missing_evidence")
+            if not self.suggested_validation:
+                raise ValueError("hypothesis requires suggested_validation")
+        return self
+
+
+class EvidenceGap(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=1)
+    missing_evidence: list[str] = Field(min_length=1)
+
+
+class EvidenceGroundedDiagnosis(BaseModel):
+    """Evaluation contract separating facts, interpretations, and open hypotheses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    primary_candidate_indices: list[int] = Field(default_factory=list)
+    evidence_indices: list[int] = Field(default_factory=list)
+    propagation_event_indices: list[int] = Field(default_factory=list)
+    claims: list[DiagnosisClaim] = Field(min_length=1)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
+    recommended_next_checks: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+    def validate_event_indices(self, event_count: int) -> None:
+        if event_count < 0:
+            raise ValueError("event_count must be non-negative")
+        values = {
+            "primary_candidate_indices": self.primary_candidate_indices,
+            "evidence_indices": self.evidence_indices,
+            "propagation_event_indices": self.propagation_event_indices,
+        }
+        for claim_index, claim in enumerate(self.claims):
+            values[f"claims[{claim_index}].evidence_refs"] = claim.evidence_refs
+        for field, indices in values.items():
+            for index in indices:
+                if index < 0 or index >= event_count:
+                    raise ValueError(
+                        f"invalid {field} index {index}; expected 0 <= index < {event_count}"
+                    )
 
 
 class EntityReference(BaseModel):
