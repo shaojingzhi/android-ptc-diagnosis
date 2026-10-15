@@ -729,6 +729,32 @@ behavior through `--reliability-hardening`; its default remains the historical c
 These tests prove deterministic interface behavior only. No paid model was called, so they do not
 show that a real model will reliably finalize, use handles correctly, or improve diagnosis accuracy.
 
+### Registry-output reliability real-model smoke
+
+One strictly controlled DeepSeek run exercised the opt-in hardened path on
+`startup_dependency_unready_full`, exposed to the model only as `incident-hardening-01`. The model
+used the shared short-handle space for both initial compact evidence and queried runtime state, then
+returned an accepted final with 27 references across 17 unique handles. Every handle resolved
+exactly to a canonical EvidenceItem ID, every referenced item retained source provenance, and no
+unknown reference was repaired or ignored.
+
+The run took 6 model turns, 5 tool-calling rounds, 9 tool calls, 79,300 tokens, and 25.59 seconds. It
+also made one invalid guessed cgroup-reference call, which the typed tool rejected; this did not
+invalidate the later diagnosis. The final identified the observed readiness chain, used queried
+HostBridge process/service state, separated the unproven internal HostBridge mechanism into a
+medium-confidence hypothesis, retained that evidence gap, and proposed read-only follow-up checks.
+Some wording such as “never reached ready” and the noise classification is broader than the sampled
+observations strictly prove, so schema/reference acceptance is not treated as proof of semantic
+grounding.
+
+The model returned valid structured JSON directly, so the one-shot finalization fallback was not
+triggered and was not verified against the real provider in this run; its bounded behavior remains
+covered only by deterministic tests. Compared descriptively with the historical 52,849-token
+reference-failure run on the same replay case, this run resolved all short handles but used 79,300
+tokens. These separate single samples are not a controlled A/B and do not establish token, latency,
+accuracy, or reliability improvement. The manifest and redacted trace are under
+`experiments/reliability-hardening-smoke/`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

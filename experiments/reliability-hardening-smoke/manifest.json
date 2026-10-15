@@ -1,0 +1,32 @@
+{
+  "experiment_name": "reliability-hardening-smoke",
+  "run_count": 1,
+  "case_identity_for_offline_evaluation": "startup_dependency_unready_full",
+  "neutral_model_visible_incident_id": "incident-hardening-01",
+  "implementation_commit": "40cda8230157137a9743176d9c327c6f65643163",
+  "repository_commit_at_execution": "40cda8230157137a9743176d9c327c6f65643163",
+  "model": {
+    "provider": "deepseek",
+    "name": "deepseek-v4-pro",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_tool_rounds": 6,
+    "provider_max_retries": 0,
+    "reliability_hardening": true
+  },
+  "system_prompt_sha256": "044817fafbddd2432d64d526df6b6fb2d2d4bbb913b3c90bf7c012b72169a451",
+  "task_prompt_sha256": "0bf95b8943b45332847fee1a5322fa99b47a2a6a6dcf6c2c9394b4c276710cce",
+  "tool_schema_sha256": "7814f2b58c188bf36f69e29128f6f3b20241bb77355f0d2a063801aba89a66ec",
+  "model_input_file_sha256": {
+    "eval/cases/startup_dependency_unready_full/case.yaml": "38fff8ff5781da04d949aeeb2105d4db566683d27ab78cbe30d2f8460b925084",
+    "eval/cases/startup_dependency_unready_full/logcat.txt": "969f018e6107ea49e513fb0c93faa834f7d6ecd605fc906418c5052eb9cf5304",
+    "eval/cases/startup_dependency_unready_full/runtime_state.yaml": "578a9dd8ed1c72e273410fcf6574901b71aecdc03481edfe3b6d1eacf4516d9b"
+  },
+  "offline_evaluation_file_sha256": {
+    "eval/cases/startup_dependency_unready_full/expected.yaml": "8a4cb0d49de236236b785474771c7bd269bfa005b25d3b717b6d1ad44d25f7c7"
+  },
+  "trace_path": "experiments/reliability-hardening-smoke/trace.jsonl",
+  "trace_sha256": "1a6a9e6b5977625b068dd5e11e70baffc62da37c90205148853bc9ba1c89c9a9",
+  "final_status": "accepted",
+  "finalization_fallback_triggered": false
+}
