@@ -57,3 +57,17 @@ def test_registry_eval_can_prepare_opt_in_reliability_hardening():
     assert payload["evidence_registry"][0]["handle"] == "E001"
     assert "evidence_id" not in payload["evidence_registry"][0]
     assert "short handle values" in prepared["task_prompt"]
+
+
+def test_registry_eval_can_prepare_opt_in_deduplicated_evidence_view():
+    prepared = RUNNER.prepare_evaluation(
+        ROOT,
+        "runtime_service_unready_001",
+        reliability_hardening=True,
+        deduplicated_evidence_view=True,
+    )
+    payload = json.loads(prepared["task_prompt"].rsplit("\n", 1)[-1])
+
+    assert "evidence_registry" not in payload
+    assert payload["compact_evidence"]["groups"][0]["handle"] == "E001"
+    assert "_evidence_handles path pointers" in prepared["task_prompt"]

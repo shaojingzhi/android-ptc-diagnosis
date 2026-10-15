@@ -755,6 +755,48 @@ tokens. These separate single samples are not a controlled A/B and do not establ
 accuracy, or reliability improvement. The manifest and redacted trace are under
 `experiments/reliability-hardening-smoke/`.
 
+### Lean registry evidence presentation
+
+Offline inspection of the hardened registry path verified two sources of repeated model-visible
+content. The initial task serialized all nine compact groups once under `compact_evidence` and again
+inside nine EvidenceItem `observation.value` fields. Tool messages retained each original result and
+then appended full EvidenceItems—including the same observation values and full provenance. In a
+fixed six-call sequence over `startup_dependency_unready_full`, this duplicated 45 observed values;
+the remaining six attached items repeated entity identity metadata.
+
+The opt-in `deduplicated_evidence_view` keeps canonical EvidenceItems unchanged inside the Python
+runtime, but presents them differently. Each initial compact group receives its `E###` handle
+in-place. Tool messages retain the original result exactly once and add only
+`_evidence_handles: [{"handle": "E###", "path": [...]}]`, where each path locates the actual event,
+runtime field, or entity reference in that same result. The registry still owns full observation
+values, typed subjects, canonical IDs, all provenance links, deduplication, and exact unknown-handle
+rejection. Errors register no evidence, and unqueried state is not exposed.
+
+The following deterministic comparison used the same nine initial groups and the same calls to
+`get_events`, `inspect_failure_context`, process/service discovery, and process/service inspection.
+Values are actual UTF-8 bytes of the local model-facing serialization, not token estimates:
+
+| Metric | Hardened baseline | Lean view |
+| --- | ---: | ---: |
+| Initial task | 9,912 | 5,063 |
+| Initial compact evidence | 2,099 | 2,243 |
+| Initial evidence representation (compact + registry copy) | 6,748 | 2,243 |
+| Output schema | 1,426 | 1,426 |
+| Original tool results, six calls | 9,579 | 9,579 |
+| Added evidence metadata, six calls | 25,358 | 2,447 |
+| Combined model-visible tool results | 35,093 | 12,152 |
+| Final reconstructed context | 53,069 | 21,403 |
+| Sum of reconstructed input contexts across seven turns | 263,881 | 114,182 |
+| Canonical registry items / visible handles | 51 / 51 | 51 / 51 |
+| Items with provenance | 51 | 51 |
+
+The cumulative deterministic representation fell by 149,699 bytes (56.7%) without changing tool
+results, acquired observations, registry cardinality, handles, canonical reference resolution, or
+provenance coverage. This establishes removal of duplicate serialization and a byte-level context
+reduction only. It does not establish DeepSeek token savings, latency improvement, diagnosis-quality
+preservation, or stable model use of handle/path pointers; those require a separately authorized
+controlled real-model comparison. The historical 79,300-token smoke and its trace remain unchanged.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

@@ -52,7 +52,11 @@ def _sha256(value: str) -> str:
 
 
 def prepare_evaluation(
-    root: Path, case_id: str, *, reliability_hardening: bool = False
+    root: Path,
+    case_id: str,
+    *,
+    reliability_hardening: bool = False,
+    deduplicated_evidence_view: bool = False,
 ) -> dict[str, Any]:
     case_dir = root / "eval" / "cases" / case_id
     if not case_dir.is_dir() or case_dir.parent != root / "eval" / "cases":
@@ -66,6 +70,7 @@ def prepare_evaluation(
         events,
         runtime_state=runtime_state,
         reliability_hardening=reliability_hardening,
+        deduplicated_evidence_view=deduplicated_evidence_view,
     )
     task_prompt = executor._request_prompt(request)
     return {
@@ -84,15 +89,21 @@ def main() -> None:
     parser.add_argument("--incident-id")
     parser.add_argument("--implementation-commit")
     parser.add_argument("--reliability-hardening", action="store_true")
+    parser.add_argument("--deduplicated-evidence-view", action="store_true")
     parser.add_argument("--trace-file", type=Path, required=True)
     args = parser.parse_args()
+    if args.deduplicated_evidence_view and not args.reliability_hardening:
+        parser.error("--deduplicated-evidence-view requires --reliability-hardening")
     if args.trace_file.exists():
         raise SystemExit(f"refusing to overwrite trace: {args.trace_file}")
 
     root = Path(__file__).parents[1]
     incident_id = args.incident_id or args.case
     prepared = prepare_evaluation(
-        root, args.case, reliability_hardening=args.reliability_hardening
+        root,
+        args.case,
+        reliability_hardening=args.reliability_hardening,
+        deduplicated_evidence_view=args.deduplicated_evidence_view,
     )
     repository_commit = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],
@@ -108,6 +119,7 @@ def main() -> None:
         prepared["events"],
         runtime_state=prepared["runtime_state"],
         reliability_hardening=args.reliability_hardening,
+        deduplicated_evidence_view=args.deduplicated_evidence_view,
     ).run(
         prepared["request"],
         case_id=incident_id,
@@ -143,6 +155,7 @@ def main() -> None:
             ),
             "provider_retry_policy": {"max_retries": 0},
             "reliability_hardening": args.reliability_hardening,
+            "deduplicated_evidence_view": args.deduplicated_evidence_view,
             "total_tokens": (
                 trace["input_tokens"] + trace["output_tokens"]
                 if trace["input_tokens"] is not None

@@ -59,19 +59,55 @@ class EvidenceRegistry:
         """Serialize evidence with stable run-local handles for model consumption."""
         visible = []
         for item in items:
-            if item.evidence_id not in self._items:
-                raise ValueError(f"unregistered evidence id: {item.evidence_id}")
-            handle = self._handle_by_id.get(item.evidence_id)
-            if handle is None:
-                handle = f"E{len(self._handle_by_id) + 1:03d}"
-                self._handle_by_id[item.evidence_id] = handle
-                self._id_by_handle[handle] = item.evidence_id
+            handle = self._model_handle(item)
             payload = item.model_dump(mode="json", exclude={"evidence_id"})
             visible.append({"handle": handle, **payload})
         return visible
 
+    def model_handles(self, items: Iterable[EvidenceItem]) -> list[str]:
+        """Assign handles without serializing a second copy of the evidence."""
+        return [self._model_handle(item) for item in items]
+
+    def model_handle_paths(
+        self, items: Iterable[EvidenceItem], *, tool_call_id: str
+    ) -> list[dict[str, Any]]:
+        """Point handles at observations already present in one tool result."""
+        visible = []
+        for item in items:
+            provenance = next(
+                (
+                    source
+                    for source in item.provenance
+                    if source.origin == "tool_result"
+                    and source.tool_call_id == tool_call_id
+                ),
+                None,
+            )
+            if provenance is None:
+                raise ValueError(
+                    f"evidence has no source path for tool call {tool_call_id}: "
+                    f"{item.evidence_id}"
+                )
+            visible.append(
+                {
+                    "handle": self._model_handle(item),
+                    "path": provenance.result_path,
+                }
+            )
+        return visible
+
     def handle_map(self) -> dict[str, str]:
         return dict(self._id_by_handle)
+
+    def _model_handle(self, item: EvidenceItem) -> str:
+        if item.evidence_id not in self._items:
+            raise ValueError(f"unregistered evidence id: {item.evidence_id}")
+        handle = self._handle_by_id.get(item.evidence_id)
+        if handle is None:
+            handle = f"E{len(self._handle_by_id) + 1:03d}"
+            self._handle_by_id[item.evidence_id] = handle
+            self._id_by_handle[handle] = item.evidence_id
+        return handle
 
     def resolve_references(
         self, diagnosis: RegistryBackedDiagnosis

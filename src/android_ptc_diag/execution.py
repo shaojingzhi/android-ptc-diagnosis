@@ -533,10 +533,16 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
         *args: Any,
         runtime_state: dict[str, Any] | None = None,
         reliability_hardening: bool = False,
+        deduplicated_evidence_view: bool = False,
         **kwargs: Any,
     ):
+        if deduplicated_evidence_view and not reliability_hardening:
+            raise ValueError(
+                "deduplicated_evidence_view requires reliability_hardening"
+            )
         super().__init__(*args, **kwargs)
         self.reliability_hardening = reliability_hardening
+        self.deduplicated_evidence_view = deduplicated_evidence_view
         self.evidence_registry = EvidenceRegistry()
         if runtime_state is not None:
             self.tools = typed_reference_tool_definitions()
@@ -552,18 +558,35 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
         payload = json.loads(serialized)
         items = self.evidence_registry.add_compact_view(payload["compact_evidence"])
         if self.reliability_hardening:
-            payload["evidence_registry"] = self.evidence_registry.model_items(items)
+            if self.deduplicated_evidence_view:
+                handles = self.evidence_registry.model_handles(items)
+                groups = payload["compact_evidence"]["groups"]
+                payload["compact_evidence"]["groups"] = [
+                    {"handle": handle, **group}
+                    for handle, group in zip(handles, groups, strict=True)
+                ]
+            else:
+                payload["evidence_registry"] = self.evidence_registry.model_items(items)
         else:
             payload["evidence_registry"] = [
                 item.model_dump(mode="json") for item in items
             ]
         payload["output_schema"] = RegistryBackedDiagnosis.model_json_schema()
         if self.reliability_hardening:
-            registry_instructions = (
-                " EvidenceItem records are system-generated from only the evidence shown "
-                "in this run. Cite their short handle values (for example E001) in claim "
-                "evidence_refs. Do not return or rewrite an evidence_items registry."
-            )
+            if self.deduplicated_evidence_view:
+                registry_instructions = (
+                    " Evidence is system-registered only when shown in this run. Initial "
+                    "compact groups carry their short handle. Later tool results associate "
+                    "handles with visible values through _evidence_handles path pointers. "
+                    "Cite these handles (for example E001) in claim evidence_refs. Do not "
+                    "return or rewrite an evidence_items registry."
+                )
+            else:
+                registry_instructions = (
+                    " EvidenceItem records are system-generated from only the evidence shown "
+                    "in this run. Cite their short handle values (for example E001) in claim "
+                    "evidence_refs. Do not return or rewrite an evidence_items registry."
+                )
         else:
             registry_instructions = (
                 " EvidenceItem records are system-generated from only the evidence shown "
@@ -585,6 +608,13 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
         if not items:
             return result
         if self.reliability_hardening:
+            if self.deduplicated_evidence_view:
+                return {
+                    **result,
+                    "_evidence_handles": self.evidence_registry.model_handle_paths(
+                        items, tool_call_id=str(call["id"])
+                    ),
+                }
             visible_items = self.evidence_registry.model_items(items)
         else:
             visible_items = [item.model_dump(mode="json") for item in items]
