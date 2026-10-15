@@ -520,12 +520,17 @@ def test_process_to_cgroup_typed_query_supplies_state_id_and_accepts_final_refer
         "inspect_process_state_by_ref",
         "inspect_cgroup_state_by_ref",
     ]
-    tool_payloads = {
-        message.tool_call_id: json.loads(message.content)
-        for turn_messages in model.messages
-        for message in turn_messages
-        if getattr(message, "tool_call_id", None)
-    }
+    tool_payloads = {}
+    for turn_messages in model.messages:
+        for message in turn_messages:
+            if isinstance(message, dict):
+                call_id = message.get("tool_call_id")
+                content = message.get("content")
+            else:
+                call_id = getattr(message, "tool_call_id", None)
+                content = getattr(message, "content", None)
+            if call_id and isinstance(content, str):
+                tool_payloads[call_id] = json.loads(content)
     process_payload = tool_payloads["inspect-process"]
     assert process_payload["cgroup_ref"] == cgroup_ref
     cgroup_payload = tool_payloads["inspect-cgroup"]
