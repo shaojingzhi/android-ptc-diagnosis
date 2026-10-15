@@ -7,7 +7,13 @@ from android_ptc_diag.compact import build_compact_evidence, compact_model_view
 from android_ptc_diag.evidence_registry import EvidenceReferenceError, EvidenceRegistry
 from android_ptc_diag.execution import RegistryBackedCompactDirectExecutor
 from android_ptc_diag.models import LogEvent, RegistryBackedDiagnosis, TriageRequest
-from android_ptc_diag.primitives import get_events, inspect_service_state
+from android_ptc_diag.primitives import (
+    discover_runtime_entities,
+    get_events,
+    inspect_cgroup_state_by_ref,
+    inspect_process_state_by_ref,
+    inspect_service_state,
+)
 
 
 class FakeResponse:
@@ -145,6 +151,94 @@ def test_runtime_tool_result_generates_faithful_state_and_entity_evidence():
     assert entity.subject.id == "service:runtime_service"
     assert entity.observation is None
     assert all("unqueried_service" not in item.evidence_id for item in items)
+
+
+def test_cgroup_discovery_registers_identity_without_unqueried_state():
+    state = {
+        "cgroups": {
+            "scope_record_7": {
+                "path": "/sys/fs/cgroup/demo/7",
+                "memory_max_bytes": 33554432,
+            }
+        }
+    }
+    result = discover_runtime_entities(state, entity_type="cgroup")
+
+    items = EvidenceRegistry().add_tool_result(
+        tool_call_id="discover-cgroup",
+        tool_name="discover_runtime_entities",
+        result=result,
+    )
+
+    assert [item.evidence_id for item in items] == ["entity:cgroup:scope_record_7"]
+    assert items[0].source_type == "entity"
+    assert items[0].subject.id == "cgroup:scope_record_7"
+    assert items[0].observation is None
+    assert items[0].provenance[0].result_path == ["entities", 0, "entity_ref"]
+
+
+def test_process_cgroup_link_and_inspection_keep_identity_and_state_boundaries():
+    state = {
+        "processes": {
+            "bootstrap_worker": {
+                "pid": 71,
+                "state": "running",
+                "cgroup_path": "/sys/fs/cgroup/demo/7",
+            }
+        },
+        "cgroups": {
+            "scope_record_7": {
+                "path": "/sys/fs/cgroup/demo/7",
+                "memory_max_bytes": 33554432,
+            }
+        },
+    }
+    process_ref = {
+        "entity_type": "process",
+        "entity_id": "process:bootstrap_worker",
+        "canonical_name": "bootstrap_worker",
+    }
+    cgroup_ref = {
+        "entity_type": "cgroup",
+        "entity_id": "cgroup:scope_record_7",
+        "canonical_name": "scope_record_7",
+    }
+    registry = EvidenceRegistry()
+
+    process_items = registry.add_tool_result(
+        tool_call_id="inspect-process",
+        tool_name="inspect_process_state_by_ref",
+        result=inspect_process_state_by_ref(state, entity_ref=process_ref),
+    )
+
+    linked = next(item for item in process_items if item.subject.type == "cgroup")
+    assert linked.evidence_id == "entity:cgroup:scope_record_7"
+    assert linked.source_type == "entity"
+    assert linked.observation is None
+    assert linked.provenance[0].result_path == ["cgroup_ref"]
+    assert not any(
+        item.subject.type == "cgroup" and item.source_type == "runtime_state"
+        for item in process_items
+    )
+
+    cgroup_items = registry.add_tool_result(
+        tool_call_id="inspect-cgroup",
+        tool_name="inspect_cgroup_state_by_ref",
+        result=inspect_cgroup_state_by_ref(state, entity_ref=cgroup_ref),
+    )
+
+    identity = next(item for item in cgroup_items if item.source_type == "entity")
+    limit = next(
+        item
+        for item in cgroup_items
+        if item.observation and item.observation.field == "memory_max_bytes"
+    )
+    assert identity.evidence_id == linked.evidence_id
+    assert len(identity.provenance) == 2
+    assert identity.provenance[-1].result_path == ["entity_ref"]
+    assert limit.subject.id == "cgroup:scope_record_7"
+    assert limit.observation.value == 33554432
+    assert limit.provenance[0].result_path == ["memory_max_bytes"]
 
 
 def test_registry_ids_are_stable_deduplicated_and_run_local():
@@ -340,3 +434,103 @@ def test_typed_runtime_query_supplies_system_id_and_accepts_final_reference():
     }
     assert expected_item.evidence_id in supplied_ids
     assert "evidence_items" not in result.trace.final_parsed_payload
+
+
+def test_process_to_cgroup_typed_query_supplies_state_id_and_accepts_final_reference():
+    events = _events()
+    runtime_state = {
+        "processes": {
+            "bootstrap_worker": {
+                "pid": 71,
+                "state": "running",
+                "cgroup_path": "/sys/fs/cgroup/demo/7",
+            }
+        },
+        "cgroups": {
+            "scope_record_7": {
+                "path": "/sys/fs/cgroup/demo/7",
+                "memory_max_bytes": 33554432,
+            }
+        },
+        "services": {},
+        "mounts": {},
+    }
+    process_ref = {
+        "entity_type": "process",
+        "entity_id": "process:bootstrap_worker",
+        "canonical_name": "bootstrap_worker",
+    }
+    cgroup_ref = {
+        "entity_type": "cgroup",
+        "entity_id": "cgroup:scope_record_7",
+        "canonical_name": "scope_record_7",
+    }
+    cgroup_result = inspect_cgroup_state_by_ref(
+        runtime_state, entity_ref=cgroup_ref
+    )
+    expected_item = next(
+        item
+        for item in EvidenceRegistry().add_tool_result(
+            tool_call_id="inspect-cgroup",
+            tool_name="inspect_cgroup_state_by_ref",
+            result=cgroup_result,
+        )
+        if item.observation and item.observation.field == "memory_max_bytes"
+    )
+    model = FakeModel(
+        [
+            FakeResponse(
+                tool_calls=[
+                    {
+                        "id": "discover-process",
+                        "name": "discover_runtime_entities",
+                        "args": {"entity_type": "process"},
+                    }
+                ]
+            ),
+            FakeResponse(
+                tool_calls=[
+                    {
+                        "id": "inspect-process",
+                        "name": "inspect_process_state_by_ref",
+                        "args": {"entity_ref": process_ref},
+                    }
+                ]
+            ),
+            FakeResponse(
+                tool_calls=[
+                    {
+                        "id": "inspect-cgroup",
+                        "name": "inspect_cgroup_state_by_ref",
+                        "args": {"entity_ref": cgroup_ref},
+                    }
+                ]
+            ),
+            FakeResponse(content=json.dumps(_diagnosis(expected_item.evidence_id))),
+        ]
+    )
+
+    result = RegistryBackedCompactDirectExecutor(
+        model, events, runtime_state=runtime_state
+    ).run(_request())
+
+    assert result.trace.final_status == "accepted"
+    assert [detail["tool"] for detail in result.trace.tool_call_details] == [
+        "discover_runtime_entities",
+        "inspect_process_state_by_ref",
+        "inspect_cgroup_state_by_ref",
+    ]
+    tool_payloads = {
+        message.tool_call_id: json.loads(message.content)
+        for message in model.messages[-1]
+        if getattr(message, "tool_call_id", None)
+    }
+    process_payload = tool_payloads["inspect-process"]
+    assert process_payload["cgroup_ref"] == cgroup_ref
+    cgroup_payload = tool_payloads["inspect-cgroup"]
+    supplied_ids = {
+        item["evidence_id"] for item in cgroup_payload["_system_evidence_items"]
+    }
+    assert expected_item.evidence_id in supplied_ids
+    registry = {item.evidence_id: item for item in result.evidence_registry}
+    assert registry[expected_item.evidence_id].observation.value == 33554432

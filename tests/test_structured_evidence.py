@@ -148,7 +148,7 @@ def test_structured_diagnosis_rejects_duplicate_evidence_id():
         {
             "evidence_id": "entity_cgroup_001",
             "source_type": "entity",
-            "subject": {"type": "cgroup", "id": "cgroup:runtime_service"},
+            "subject": {"type": "cgroup", "id": "cgroup:missing"},
         },
     ],
 )
@@ -169,6 +169,30 @@ def test_structured_diagnosis_rejects_malformed_source():
                 "observation": {"field": "state", "value": "starting"},
             }
         )
+
+
+def test_structured_diagnosis_accepts_canonical_cgroup_entity():
+    diagnosis = _diagnosis(
+        evidence_items=[
+            {
+                "evidence_id": "entity:cgroup:runtime_service",
+                "source_type": "entity",
+                "subject": {
+                    "type": "cgroup",
+                    "id": "cgroup:runtime_service",
+                },
+            }
+        ],
+        claims=[
+            {
+                "statement": "the cgroup identity was shown",
+                "type": "observation",
+                "evidence_refs": ["entity:cgroup:runtime_service"],
+            }
+        ],
+    )
+
+    _validate(diagnosis)
 
 
 def test_existing_simplified_contract_remains_separate():

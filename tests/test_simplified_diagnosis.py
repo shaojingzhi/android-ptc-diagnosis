@@ -96,7 +96,7 @@ def test_simplified_diagnosis_rejects_invalid_event_reference(reference_id):
     [
         ("runtime_state", "service:vendor_bridge"),
         ("entity", "mount:/vendor"),
-        ("entity", "cgroup:runtime_service"),
+        ("entity", "cgroup:missing"),
     ],
 )
 def test_simplified_diagnosis_rejects_unknown_runtime_reference(
@@ -150,10 +150,14 @@ def test_simplified_diagnosis_accepts_mixed_valid_references():
                         "source_type": "runtime_state",
                         "id": "cgroup:runtime_service",
                     },
+                    {
+                        "source_type": "entity",
+                        "id": "cgroup:runtime_service",
+                    },
                 ],
             }
         ]
     )
 
     diagnosis.validate_evidence_references(26, load_runtime_state(CASE_DIR))
-    assert len(diagnosis.claims[0].evidence_refs) == 4
+    assert len(diagnosis.claims[0].evidence_refs) == 5

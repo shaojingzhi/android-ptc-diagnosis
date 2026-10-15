@@ -318,6 +318,7 @@ def discover_runtime_entities(
         "process": ("processes", "name"),
         "service": ("services", "name"),
         "mount": ("mounts", "path"),
+        "cgroup": ("cgroups", "name"),
     }
     if entity_type not in collections:
         raise ValueError(f"unsupported runtime entity type: {entity_type}")
@@ -336,13 +337,15 @@ def discover_runtime_entities(
             entity_id=f"{entity_type}:{identifier}",
             canonical_name=identifier,
         )
-        entities.append(
-            {
-                identifier_field: identifier,
-                "entity_ref": entity_ref.model_dump(),
-                "attributes": dict(attributes),
-            }
-        )
+        entity = {
+            identifier_field: identifier,
+            "entity_ref": entity_ref.model_dump(),
+        }
+        if entity_type == "cgroup" and "path" in attributes:
+            entity["path"] = attributes["path"]
+        else:
+            entity["attributes"] = dict(attributes)
+        entities.append(entity)
     return {
         "entity_type": entity_type,
         "entities": entities,
@@ -370,6 +373,7 @@ def _resolve_entity_reference(
         "process": "processes",
         "service": "services",
         "mount": "mounts",
+        "cgroup": "cgroups",
     }[expected_type]
     entries = runtime_state.get(collection)
     if not isinstance(entries, dict):
@@ -396,7 +400,14 @@ def inspect_process_state_by_ref(
 ) -> dict[str, Any]:
     """Read one replay process selected by a validated canonical reference."""
     name = _resolve_entity_reference(runtime_state, entity_ref, "process")
-    return inspect_process_state(runtime_state, name=name)
+    result = inspect_process_state(runtime_state, name=name)
+    cgroup_ref, status = _resolve_process_cgroup_reference(
+        runtime_state, result.get("cgroup_path")
+    )
+    result["cgroup_reference_status"] = status
+    if cgroup_ref is not None:
+        result["cgroup_ref"] = cgroup_ref.model_dump()
+    return result
 
 
 def inspect_service_state_by_ref(
@@ -413,6 +424,49 @@ def inspect_mount_state_by_ref(
     """Read one replay mount selected by a validated canonical reference."""
     path = _resolve_entity_reference(runtime_state, entity_ref, "mount")
     return inspect_mount_state(runtime_state, path=path)
+
+
+def inspect_cgroup_state_by_ref(
+    runtime_state: dict[str, Any], *, entity_ref: EntityReference | dict[str, Any]
+) -> dict[str, Any]:
+    """Read one replay cgroup selected by a validated canonical reference."""
+    name = _resolve_entity_reference(runtime_state, entity_ref, "cgroup")
+    result = inspect_cgroup_state(runtime_state, name=name)
+    result["entity_ref"] = EntityReference(
+        entity_type="cgroup",
+        entity_id=f"cgroup:{name}",
+        canonical_name=name,
+    ).model_dump()
+    return result
+
+
+def _resolve_process_cgroup_reference(
+    runtime_state: dict[str, Any], cgroup_path: Any
+) -> tuple[EntityReference | None, str]:
+    """Resolve one explicit process cgroup path without fuzzy matching."""
+    if not isinstance(cgroup_path, str) or not cgroup_path:
+        return None, "not_collected"
+    entries = runtime_state.get("cgroups")
+    if not isinstance(entries, dict):
+        return None, "inventory_unavailable"
+    matches = [
+        name
+        for name, record in entries.items()
+        if isinstance(record, dict) and record.get("path") == cgroup_path
+    ]
+    if not matches:
+        return None, "not_found"
+    if len(matches) > 1:
+        return None, "ambiguous"
+    name = matches[0]
+    return (
+        EntityReference(
+            entity_type="cgroup",
+            entity_id=f"cgroup:{name}",
+            canonical_name=name,
+        ),
+        "resolved",
+    )
 
 
 def inspect_process_state(
@@ -573,7 +627,7 @@ def typed_reference_tool_definitions() -> list[dict[str, Any]]:
         "properties": {
             "entity_type": {
                 "type": "string",
-                "enum": ["process", "service", "mount"],
+                "enum": ["process", "service", "mount", "cgroup"],
             },
             "entity_id": {"type": "string"},
             "canonical_name": {"type": ["string", "null"]},
@@ -620,14 +674,14 @@ def typed_reference_tool_definitions() -> list[dict[str, Any]]:
             {
                 "entity_type": {
                     "type": "string",
-                    "enum": ["process", "service", "mount"],
+                    "enum": ["process", "service", "mount", "cgroup"],
                 }
             },
             ["entity_type"],
         ),
         _function_spec(
             "inspect_process_state_by_ref",
-            "Read process state using a reference returned by discovery.",
+            "Read process state using a reference returned by discovery; the result may include a cgroup reference for an exact path match.",
             {"entity_ref": entity_ref},
             ["entity_ref"],
         ),
@@ -638,10 +692,10 @@ def typed_reference_tool_definitions() -> list[dict[str, Any]]:
             ["entity_ref"],
         ),
         _function_spec(
-            "inspect_cgroup_state",
-            "Read one deterministic replay cgroup record without changing state.",
-            {"name": {"type": "string"}},
-            ["name"],
+            "inspect_cgroup_state_by_ref",
+            "Read cgroup state using a reference returned by discovery or process inspection.",
+            {"entity_ref": entity_ref},
+            ["entity_ref"],
         ),
         _function_spec(
             "inspect_mount_state_by_ref",
@@ -707,7 +761,7 @@ def typed_reference_tool_handlers(
         "inspect_service_state_by_ref": lambda **kwargs: inspect_service_state_by_ref(
             runtime_state, **kwargs
         ),
-        "inspect_cgroup_state": lambda **kwargs: inspect_cgroup_state(
+        "inspect_cgroup_state_by_ref": lambda **kwargs: inspect_cgroup_state_by_ref(
             runtime_state, **kwargs
         ),
         "inspect_mount_state_by_ref": lambda **kwargs: inspect_mount_state_by_ref(

@@ -162,7 +162,12 @@ class EvidenceRegistry:
             reference = entity["entity_ref"]
             subject_type = reference.get("entity_type")
             subject_id = reference.get("entity_id")
-            if subject_type not in {"process", "service", "mount"} or not isinstance(subject_id, str):
+            if subject_type not in {
+                "process",
+                "service",
+                "mount",
+                "cgroup",
+            } or not isinstance(subject_id, str):
                 continue
             base_path = ("entities", position)
             item = self._add_entity(
@@ -196,13 +201,32 @@ class EvidenceRegistry:
             if not isinstance(identifier, str):
                 continue
             subject_id = f"{subject_type}:{identifier}"
-            if subject_type != "cgroup":
-                item = self._add_entity(
-                    subject_type, subject_id, provenance((identity_field,))
-                )
-                touched[item.evidence_id] = item
+            entity_path = (
+                ("entity_ref",)
+                if isinstance(result.get("entity_ref"), dict)
+                else (identity_field,)
+            )
+            item = self._add_entity(
+                subject_type, subject_id, provenance(entity_path)
+            )
+            touched[item.evidence_id] = item
+            linked_cgroup = result.get("cgroup_ref")
+            if isinstance(linked_cgroup, dict):
+                linked_type = linked_cgroup.get("entity_type")
+                linked_id = linked_cgroup.get("entity_id")
+                if linked_type == "cgroup" and isinstance(linked_id, str):
+                    item = self._add_entity(
+                        "cgroup", linked_id, provenance(("cgroup_ref",))
+                    )
+                    touched[item.evidence_id] = item
             for field, value in result.items():
-                if field in {identity_field, "read_only", "error"}:
+                if field in {
+                    identity_field,
+                    "entity_ref",
+                    "cgroup_ref",
+                    "read_only",
+                    "error",
+                }:
                     continue
                 item = self._add_observation(
                     "runtime_state",

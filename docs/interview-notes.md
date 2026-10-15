@@ -648,6 +648,27 @@ improvement is a consistent discovery/typed-locator contract, not another Androi
 rule. Full evidence IDs, per-run metrics, failures, and trace locations are in
 [container-startup-paired-model-evaluation.md](container-startup-paired-model-evaluation.md).
 
+### Cgroup typed-reference follow-up
+
+The paired evaluation exposed an evidence-access contract mismatch rather than a new diagnosis
+failure: logs and process inspection showed a cgroup path, while the cgroup tool required a hidden
+replay dictionary key and discovery could not return cgroups. A model could therefore choose the
+right observation but still fail to retrieve it.
+
+The typed-reference path now treats cgroup as the same kind of discoverable identity as process,
+service, and mount. Discovery returns a canonical cgroup reference plus its recorded path, and the
+new by-reference inspection validates that reference before returning state. Process inspection may
+also attach the same reference when its explicit `cgroup_path` exactly and uniquely matches the
+inventory; it never guesses from process names, basenames, or path prefixes. Showing that reference
+registers identity only. Cgroup state EvidenceItems are created only after the cgroup record is
+actually queried, with provenance pointing to the returned field.
+
+The old name-based Python primitive remains available for compatibility, frozen traces were not
+rewritten, and missing, ambiguous, or uncollected associations remain explicit. Offline tests cover
+both discovery and process-linked query chains, including registry-backed final references. This
+change has not been tested with a real model and therefore does not establish better tool-selection
+success, diagnosis quality, or token usage.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

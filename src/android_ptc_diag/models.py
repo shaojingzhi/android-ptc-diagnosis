@@ -180,9 +180,7 @@ class SimplifiedDiagnosis(BaseModel):
             for entity_type, collection in collections.items()
             for identifier in _runtime_identifiers(runtime_state, collection, entity_type)
         }
-        entity_ids = {
-            value for value in runtime_ids if not value.startswith("cgroup:")
-        }
+        entity_ids = set(runtime_ids)
 
         for claim_index, claim in enumerate(self.claims):
             for reference in claim.evidence_refs:
@@ -324,8 +322,6 @@ class StructuredEvidenceDiagnosis(BaseModel):
 
         if subject_type == "event":
             raise ValueError(f"invalid {field} subject for {item.source_type}: {subject_id}")
-        if item.source_type == "entity" and subject_type == "cgroup":
-            raise ValueError(f"invalid {field} entity subject: {subject_id}")
         _validate_runtime_subject(subject_type, subject_id, runtime_state, field)
 
 
@@ -373,7 +369,7 @@ class EntityReference(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    entity_type: Literal["process", "service", "mount"]
+    entity_type: Literal["process", "service", "mount", "cgroup"]
     entity_id: str
     canonical_name: str | None = None
 
