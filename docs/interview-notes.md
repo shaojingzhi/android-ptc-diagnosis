@@ -462,6 +462,57 @@ validation while remaining usable by the agent. Frozen traces are in
 `experiments/runtime_service_unready_simplified_contract_rich_trace.jsonl` and
 `experiments/runtime_service_unready_simplified_contract_variant_trace.jsonl`.
 
+### Structured Evidence Representation experiment
+
+Earlier work addressed how bounded evidence is retrieved. This experiment asked a different
+question: whether representing each cited fact as an explicit, typed, inspectable `EvidenceItem`
+makes claim grounding clearer. An item has a unique `evidence_id`, one of three sources
+(`log_event`, `runtime_state`, or `entity`), a typed subject identity, and—for observed log/runtime
+state—an explicit field/value observation. Claims cite only item IDs. Deterministic validation
+checks source and identity syntax, event bounds or replay inventory membership, unique IDs, and
+claim-to-item references. It deliberately does not decide whether an observation proves a claim.
+The existing `SimplifiedDiagnosis`, `DirectDiagnosis`, compact format, primitives, and frozen
+outputs remain unchanged; the structured contract is an additive evaluation model and does not
+implement ownership, component attribution, ranking, or root-cause rules.
+
+At implementation commit `f9ed28d`, `runtime_service_unready_001` was run once per arm with the
+same DeepSeek `deepseek-v4-pro` settings (temperature 0, thinking disabled), system-prompt hash,
+nine-tool schema hash, compact evidence, and six-tool-round executor. The baseline requested the
+current heterogeneous `EvidenceReference` objects. The variant requested an `EvidenceItem`
+registry and claim references to registry IDs. The variant schema made its initial task 959 bytes
+larger (5,511 versus 4,552 bytes); no prompt or validator was changed after seeing either result.
+
+| Evidence representation | Accepted final | Turns | Tool calls | Input / output / total tokens | Latency |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Existing references | no | 6 | 9 | 34,945 / 1,854 / 36,799 | 139.86s |
+| Structured `EvidenceItem` | no | 6 | 11 | 31,278 / 2,529 / 33,807 | 135.57s |
+
+The baseline response parsed as the simplified schema but failed deterministic validation on its
+first claim because it emitted bare log ID `"1"` rather than canonical `"event:1"`. The structured
+response did not pass schema validation: eight log subjects used bare indices (`"0"`, `"1"`, and
+so on) instead of `event:<index>`, and one cgroup subject used `"runtime_service"` instead of
+`cgroup:runtime_service`. Before the final response it also made one incorrect
+`inspect_group_evidence(event_count=3)` call, corrected it to 26, and continued. These failures were
+kept as the only formal pair; neither arm was rerun.
+
+Consequently, accepted-claim grounding percentage, evidence precision, evidence clarity,
+unsupported-observation count, hypothesis support, and diagnosis quality are **not scorable** for
+this pair. The baseline has at least one invalid reference. The variant has nine malformed subject
+identities, but claim-to-item validity cannot be assessed because validation stopped before a
+`StructuredEvidenceDiagnosis` existed. Lower total tokens in the invalid variant (8.1% below the
+also-invalid baseline) is not evidence of efficiency or quality. Both arms spent six model turns,
+and the variant used two more tools.
+
+This negative result shows that typed evidence makes identity mistakes more visible, but does not
+show that it improves semantic grounding. It also exposed a trace limitation: the one-shot harness
+stored validation errors but not the rejected raw final payload, so manual claim-level semantics
+cannot be reconstructed without an impermissible rerun. Future evaluation should preserve a
+redacted rejected payload and independently improve schema affordances before another predeclared
+experiment. That is preparation for later failure-localization research, not component attribution
+itself. Frozen traces are in
+`experiments/runtime_service_unready_structured_evidence_baseline_trace.jsonl` and
+`experiments/runtime_service_unready_structured_evidence_variant_trace.jsonl`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
