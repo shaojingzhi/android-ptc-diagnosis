@@ -1,0 +1,11 @@
+10-15 10:00:00.000 4000 4000 I StartupController: startup request accepted for workload demo-01
+10-15 10:00:00.050 4100 4100 I RuntimeProcess: container init state=not_started
+10-15 10:00:00.100 4000 4001 I RootfsPrepare: preparing root filesystem for workload demo-01
+10-15 10:00:00.150 4000 4001 I RootfsPrepare: mount request fs=overlay target=/run/container/root lowerdir=/images/base:/images/vendor upperdir=/state/upper workdir=/scratch/work
+10-15 10:00:00.160 4000 4001 E RootfsPrepare: overlay mount returned -1 errno=EINVAL (Invalid argument)
+10-15 10:00:00.170 4100 4100 E RuntimeProcess: container init not started: root filesystem preparation failed
+10-15 10:00:00.200 4000 4000 E StartupController: required runtime unavailable during startup
+10-15 10:00:00.250 4000 4000 E StartupController: required runtime unavailable during startup
+10-15 10:00:00.300 4000 4000 E StartupController: required runtime unavailable during startup
+10-15 10:00:00.350 6500 6500 W NetworkMonitor: background connectivity probe delayed
+10-15 10:00:03.000 4000 4000 E StartupController: container startup readiness timeout

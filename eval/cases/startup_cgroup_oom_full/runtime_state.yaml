@@ -1,0 +1,31 @@
+processes:
+  runtime_init:
+    pid: 3100
+    state: dead
+    signal: 9
+    exit_code: 137
+    cgroup_path: /runtime/startup-02
+cgroups:
+  runtime_init:
+    path: /runtime/startup-02
+    memory_max_bytes: 33554432
+    memory_current_before_bytes: 31457280
+    memory_peak_bytes: 34603008
+    memory_events_local_before:
+      oom: 0
+      oom_kill: 0
+    memory_events_local_after:
+      oom: 1
+      oom_kill: 1
+    host_mem_available_bytes: 3221225472
+    observation_window: complete
+services:
+  startup_controller:
+    state: failed
+    ready: false
+    init_pid: 3100
+mounts:
+  /run/container/root:
+    available: true
+    fs_type: overlay
+    read_only_mount: false

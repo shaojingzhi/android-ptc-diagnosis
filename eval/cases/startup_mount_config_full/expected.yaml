@@ -1,0 +1,18 @@
+primary_event_contains: "overlay mount returned -1 errno=EINVAL"
+mechanism: "OverlayFS upperdir and workdir are on different mounts"
+allowed_conclusion: "The primary failure candidate is root-filesystem mount preparation with an invalid upper/work path combination"
+supporting_evidence_contains:
+  - "mount request fs=overlay"
+  - "workdir and upperdir must reside under same mount"
+  - "container init not started"
+propagation_contains:
+  - "required runtime unavailable"
+  - "container startup readiness timeout"
+unsupported_claims:
+  - "The kernel has an OverlayFS bug"
+  - "The kernel lacks OverlayFS support"
+distinguishing_event_contains: "workdir and upperdir must reside under the same mount"
+best_next_check: "Compare the effective upperdir/workdir mount IDs and capture the exact mount options and return"
+tool_coverage:
+  queryable: ["log events", "mount records", "container init state"]
+  unavailable: ["live mountinfo outside the replay snapshot"]

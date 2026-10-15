@@ -1,0 +1,32 @@
+processes:
+  runtime_init:
+    pid: 3300
+    state: running
+    restart_count: 0
+  host_bridge:
+    pid: 3400
+    state: running
+    restart_count: 0
+cgroups:
+  runtime_init:
+    path: /runtime/startup-03
+    memory_current_bytes: 12582912
+    memory_max_bytes: 67108864
+    oom_kill_count: 0
+services:
+  runtime_service:
+    state: starting
+    ready: false
+    required_dependency: host_bridge
+    dependency_endpoint: /run/host-bridge.sock
+    last_connect_result: ECONNREFUSED
+  host_bridge:
+    state: starting
+    ready: false
+    listener_bound: false
+    registration_state: loading
+mounts:
+  /run/container/root:
+    available: true
+    fs_type: overlay
+    read_only_mount: false

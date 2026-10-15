@@ -1,0 +1,12 @@
+metadata:
+  provenance: synthetic
+  pair_id: startup_cgroup_oom
+  evidence_version: complete
+  model_incident_id: startup-incident-02-full
+request:
+  symptom: "A container init process appeared briefly, exited, and the workload never became ready"
+  target_component: "container_startup"
+  failure_timestamp: "2026-10-15T10:10:03"
+  diagnosis_scope: "container_runtime_boundary"
+  expected_behavior: "The container init process remains running and reports ready"
+  observed_behavior: "The init process exited with signal 9 and readiness timed out"

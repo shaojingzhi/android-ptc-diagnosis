@@ -1,0 +1,12 @@
+metadata:
+  provenance: synthetic
+  pair_id: startup_dependency_unready
+  evidence_version: complete
+  model_incident_id: startup-incident-03-full
+request:
+  symptom: "The container process remained alive but startup did not complete before the readiness deadline"
+  target_component: "container_startup"
+  failure_timestamp: "2026-10-15T10:20:03"
+  diagnosis_scope: "container_runtime_boundary"
+  expected_behavior: "The startup controller observes its host bridge dependency and reports ready"
+  observed_behavior: "The process stayed alive while dependency checks and readiness timed out"

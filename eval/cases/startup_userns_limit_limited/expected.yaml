@@ -1,0 +1,15 @@
+primary_event_contains: "container startup readiness timeout"
+mechanism: "Hidden for evaluation: same zero per-user user-namespace limit as the complete version"
+allowed_conclusion: "Isolation-environment preparation failed, while permission, policy, allocation limit, and feature support remain unresolved"
+required_unknowns:
+  - "The exact syscall, flags, and errno were not collected"
+  - "Kernel support, namespace limits, caller capability, seccomp, and LSM observations are unavailable"
+unsupported_claims:
+  - "User namespaces are unsupported"
+  - "A security policy denied creation"
+  - "The kernel is defective"
+removed_evidence_markers: ["CLONE_NEWUSER", "ENOSPC", "max_user_namespaces", "CONFIG_USER_NS", "seccomp_clone3"]
+best_next_check: "Capture the namespace syscall and errno, then inspect kernel config/proc support, per-user namespace limits, caller capabilities, seccomp result, and LSM audit"
+tool_coverage:
+  queryable: ["generic environment-preparation failure", "container init state"]
+  unavailable: ["syscall details", "kernel capability probes", "policy and limit observations"]

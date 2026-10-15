@@ -1,0 +1,1 @@
+[ 700.180000] Memory cgroup out of memory: Killed process 3100 (runtime-init) total-vm:65536kB, anon-rss:33792kB

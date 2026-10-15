@@ -1,0 +1,14 @@
+primary_event_contains: "container startup readiness timeout"
+mechanism: "Hidden for evaluation: same OverlayFS upper/work mount mismatch as the complete version"
+allowed_conclusion: "Startup failed before init and root-filesystem preparation is one unresolved candidate"
+required_unknowns:
+  - "The effective mount operation, options, return value, and path mount IDs were not collected"
+  - "A mount configuration error cannot be distinguished from permissions, missing paths, or filesystem capability"
+unsupported_claims:
+  - "OverlayFS parameters are invalid"
+  - "The kernel has a mount bug"
+removed_evidence_markers: ["upperdir=", "workdir=", "EINVAL", "same mount", "mount_id"]
+best_next_check: "Capture the exact overlay mount arguments, return/errno, relevant kernel message, and statfs or mountinfo for upperdir and workdir"
+tool_coverage:
+  queryable: ["generic rootfs preparation status", "container init state"]
+  unavailable: ["mount arguments", "mount return", "upper/work mount identity", "kernel mount message"]

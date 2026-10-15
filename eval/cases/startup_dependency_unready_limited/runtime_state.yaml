@@ -1,0 +1,24 @@
+processes:
+  runtime_init:
+    pid: 3300
+    state: running
+    restart_count: 0
+cgroups:
+  runtime_init:
+    path: /runtime/startup-03
+    memory_current_bytes: 12582912
+    memory_max_bytes: 67108864
+    oom_kill_count: 0
+services:
+  runtime_service:
+    state: starting
+    ready: false
+    required_dependency_observation_status: not_collected
+    connection_observation_status: not_collected
+  dependency_service:
+    observation_status: not_collected
+mounts:
+  /run/container/root:
+    available: true
+    fs_type: overlay
+    read_only_mount: false

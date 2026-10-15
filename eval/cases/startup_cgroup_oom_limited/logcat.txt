@@ -1,0 +1,10 @@
+10-15 10:10:00.000 4200 4200 I StartupController: startup request accepted for workload demo-02
+10-15 10:10:00.040 3100 3100 I RuntimeProcess: runtime init spawned pid=3100
+10-15 10:10:00.050 4200 4201 I CgroupMonitor: pid=3100 assigned cgroup=/runtime/startup-02
+10-15 10:10:00.060 4200 4201 I CgroupMonitor: memory.max=33554432
+10-15 10:10:00.190 3100 3100 E RuntimeProcess: runtime init exited signal=9 exit_code=137
+10-15 10:10:00.210 4200 4200 E StartupController: runtime init unavailable before ready
+10-15 10:10:00.260 4200 4200 E StartupController: runtime init unavailable before ready
+10-15 10:10:00.310 4200 4200 E StartupController: runtime init unavailable before ready
+10-15 10:10:00.400 6600 6600 W StorageMonitor: background trim was deferred
+10-15 10:10:03.000 4200 4200 E StartupController: container startup readiness timeout

@@ -38,6 +38,9 @@ class TriageRequest(BaseModel):
 CaseProvenance = Literal[
     "hand_authored_synthetic",
     "locally_reproduced_real_log",
+    "locally_reproduced",
+    "public_case_adapted",
+    "synthetic",
 ]
 
 

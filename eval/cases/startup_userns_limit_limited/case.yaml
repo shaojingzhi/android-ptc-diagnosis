@@ -1,0 +1,12 @@
+metadata:
+  provenance: public_case_adapted
+  pair_id: startup_userns_limit
+  evidence_version: limited
+  model_incident_id: startup-incident-04-limited
+request:
+  symptom: "The runtime could not prepare the container isolation environment and startup timed out"
+  target_component: "container_startup"
+  failure_timestamp: "2026-10-15T10:30:03"
+  diagnosis_scope: "container_runtime_boundary"
+  expected_behavior: "The runtime creates the requested isolation namespaces and starts container init"
+  observed_behavior: "Namespace preparation failed before container init appeared"

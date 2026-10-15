@@ -1,0 +1,18 @@
+primary_event_contains: "connect endpoint=/run/host-bridge.sock returned ECONNREFUSED"
+mechanism: "The runtime is waiting for a host bridge service whose listener is not ready"
+allowed_conclusion: "Investigation can be narrowed to the host-bridge readiness and connection path; why the bridge is still starting remains unknown"
+supporting_evidence_contains:
+  - "waiting for condition=host_bridge.ready"
+  - "state=starting ready=false listener_bound=false"
+  - "runtime init remains running"
+propagation_contains:
+  - "dependency not ready"
+  - "container startup readiness timeout"
+unsupported_claims:
+  - "The runtime process crashed"
+  - "Why host_bridge failed to bind is established"
+distinguishing_event_contains: "state=starting ready=false listener_bound=false"
+best_next_check: "Inspect host_bridge startup logs, listener registration/bind result, and the expected socket path during the same interval"
+tool_coverage:
+  queryable: ["caller and dependency process records", "caller and dependency service state", "connection results"]
+  unavailable: ["implementation-internal reason the bridge remains starting"]

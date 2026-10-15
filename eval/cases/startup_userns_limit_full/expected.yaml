@@ -1,0 +1,19 @@
+primary_event_contains: "clone3 flags=CLONE_NEWUSER|CLONE_NEWNS returned -1 errno=ENOSPC"
+mechanism: "The per-user user-namespace creation limit is zero while the runtime requires a new user namespace"
+allowed_conclusion: "A host namespace allocation limit or compatibility setting blocks the requested isolation setup"
+supporting_evidence_contains:
+  - "kernel_release=6.6.52-test CONFIG_USER_NS=y proc_user_ns=present"
+  - "max_user_namespaces=0"
+  - "seccomp_clone3=allow lsm_denial_observed=false"
+propagation_contains:
+  - "container init not started"
+  - "container startup readiness timeout"
+unsupported_claims:
+  - "The kernel lacks user-namespace support"
+  - "The kernel has a namespace bug"
+  - "EPERM alone proves missing kernel functionality"
+distinguishing_event_contains: "max_user_namespaces=0"
+best_next_check: "Capture the exact namespace syscall/flags/errno and inspect CONFIG_USER_NS, namespace proc entries, per-user limits, seccomp, LSM audit, and caller capabilities"
+tool_coverage:
+  queryable: ["operation and probe output recorded as log evidence", "container init state"]
+  unavailable: ["dedicated live kernel capability primitive", "live seccomp or LSM inspection"]

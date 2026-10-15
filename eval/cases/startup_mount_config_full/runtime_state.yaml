@@ -1,0 +1,33 @@
+processes:
+  container_init:
+    pid: null
+    state: not_started
+    observation_status: observed
+cgroups:
+  container_init:
+    path: /runtime/startup-01
+    observation_status: not_created
+services:
+  startup_controller:
+    state: failed
+    ready: false
+    last_stage: rootfs_prepare
+mounts:
+  /state/upper:
+    available: true
+    fs_type: ext4
+    mount_id: 41
+    writable: true
+  /scratch/work:
+    available: true
+    fs_type: tmpfs
+    mount_id: 52
+    empty: true
+    writable: true
+  /run/container/root:
+    available: false
+    fs_type: overlay
+    operation: mount
+    return_code: -1
+    errno: EINVAL
+    init_started: false

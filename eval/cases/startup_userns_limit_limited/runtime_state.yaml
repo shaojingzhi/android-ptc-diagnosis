@@ -1,0 +1,21 @@
+processes:
+  container_init:
+    pid: null
+    state: not_started
+    observation_status: observed
+cgroups:
+  container_init:
+    path: /runtime/startup-04
+    observation_status: not_created
+services:
+  startup_controller:
+    state: failed
+    ready: false
+    last_stage: environment_prepare
+    namespace_syscall_observation_status: not_collected
+    kernel_capability_observation_status: not_collected
+    security_policy_observation_status: not_collected
+mounts:
+  /run/container/root:
+    available: false
+    observation_status: not_prepared

@@ -602,6 +602,26 @@ diagnosis feature. The complete redacted trace is
 `experiments/runtime_service_unready_registry_backed_smoke_trace.jsonl`; historical traces and
 benchmarks were not changed.
 
+### Container-startup paired case suite
+
+Four paired startup-failure cases now separate “evidence can distinguish a mechanism” from “the same
+symptom remains underdetermined.” Each pair has a complete and deliberately limited input, with
+model-visible `case.yaml`/logs/state separated from hidden `expected.yaml`. A missing observation is
+represented as `not_collected`, never as an empty result that could be misread as component absence.
+
+The mechanisms cover an OverlayFS upper/work mount mismatch, a local cgroup-v2 OOM kill verified by
+before/after `memory.events.local`, an alive runtime waiting on an unready host bridge, and a zero
+per-user user-namespace allocation limit. The first three are synthetic from documented interfaces;
+the namespace pair adapts a public runc case. No Linux host mutation or complete container launch was
+performed on the macOS development host, and every log/state/timestamp is explicitly generated or
+adapted rather than production evidence.
+
+Offline validation only proves replayability, stable provenance/group identity, evidence reachability,
+and absence of the removed markers from limited inputs. It does not prove that an Agent will select
+the right query or diagnosis. The catalog records, per pair, competing explanations, supported
+conclusion depth, unsupported exclusions, remaining unknowns, and the highest-information next check:
+see [container-startup-case-catalog.md](container-startup-case-catalog.md).
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

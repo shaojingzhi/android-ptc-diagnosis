@@ -1,0 +1,14 @@
+primary_event_contains: "container startup readiness timeout"
+mechanism: "Hidden for evaluation: same unready host bridge listener as the complete version"
+allowed_conclusion: "The caller reports an unresolved dependency wait; dependency-side state and connection outcome are unknown"
+required_unknowns:
+  - "The dependency endpoint and connect result were not collected"
+  - "Dependency-side process, readiness, listener, and registration state were not observed"
+unsupported_claims:
+  - "The dependency service is absent"
+  - "The dependency refused the connection"
+removed_evidence_markers: ["host_bridge", "host-bridge.sock", "ECONNREFUSED", "listener_bound", "registration_state"]
+best_next_check: "Identify the required dependency endpoint, then inspect dependency-side process/readiness/listener state and the caller's actual connection result"
+tool_coverage:
+  queryable: ["caller process and generic service state"]
+  unavailable: ["dependency endpoint", "connection result", "dependency-side direct evidence"]

@@ -1,0 +1,18 @@
+primary_event_contains: "memory.events.local delta oom_kill=1"
+mechanism: "The startup process was killed by the OOM killer inside its memory cgroup during the observed interval"
+allowed_conclusion: "A local cgroup memory limit breach is the primary failure candidate for this startup attempt"
+supporting_evidence_contains:
+  - "assigned cgroup=/runtime/startup-02"
+  - "Memory cgroup out of memory: Killed process 3100"
+  - "host MemAvailable=3221225472"
+propagation_contains:
+  - "runtime init unavailable"
+  - "container startup readiness timeout"
+unsupported_claims:
+  - "Exit code 137 alone proves OOM"
+  - "The host was globally out of memory"
+distinguishing_event_contains: "memory.events.local delta oom_kill=1"
+best_next_check: "Correlate the process cgroup identity with before/after memory.events.local, memory.max/current/peak, and host memory state"
+tool_coverage:
+  queryable: ["process record", "cgroup limit and counter snapshots", "log and KMessage evidence"]
+  unavailable: ["live PSI history outside the replay sample"]

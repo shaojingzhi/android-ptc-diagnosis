@@ -1,0 +1,1 @@
+[ 620.150000] overlayfs: workdir and upperdir must reside under the same mount

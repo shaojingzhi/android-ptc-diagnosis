@@ -1,0 +1,11 @@
+10-15 10:20:00.000 4400 4400 I StartupController: startup request accepted for workload demo-03
+10-15 10:20:00.040 3300 3300 I RuntimeProcess: runtime init spawned pid=3300
+10-15 10:20:00.080 3300 3301 I DependencyClient: waiting for condition=host_bridge.ready endpoint=/run/host-bridge.sock
+10-15 10:20:00.100 3300 3301 E DependencyClient: connect endpoint=/run/host-bridge.sock returned ECONNREFUSED
+10-15 10:20:00.150 3400 3400 W HostBridge: state=starting ready=false listener_bound=false registration_state=loading
+10-15 10:20:00.200 3300 3301 E DependencyClient: dependency not ready; startup remains pending
+10-15 10:20:00.250 3300 3301 E DependencyClient: dependency not ready; startup remains pending
+10-15 10:20:00.300 3300 3301 E DependencyClient: dependency not ready; startup remains pending
+10-15 10:20:00.350 3300 3300 I RuntimeProcess: runtime init remains running while readiness is pending
+10-15 10:20:00.400 6700 6700 W ThermalMonitor: background temperature sample delayed
+10-15 10:20:03.000 4400 4400 E StartupController: container startup readiness timeout

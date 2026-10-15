@@ -11,7 +11,13 @@ def load_case(case_dir: str | Path) -> tuple[TriageRequest, dict]:
     meta = yaml.safe_load((case_dir / "case.yaml").read_text(encoding="utf-8"))
     CaseMetadata.model_validate(meta.get("metadata", {}))
     request = TriageRequest(**meta["request"])
-    return request, meta["expected"]
+    expected_path = case_dir / "expected.yaml"
+    expected = (
+        yaml.safe_load(expected_path.read_text(encoding="utf-8"))
+        if expected_path.exists()
+        else meta["expected"]
+    )
+    return request, expected
 
 
 def load_case_metadata(case_dir: str | Path) -> CaseMetadata:

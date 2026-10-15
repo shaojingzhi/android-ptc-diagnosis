@@ -1,0 +1,20 @@
+processes:
+  container_init:
+    pid: null
+    state: not_started
+    observation_status: observed
+cgroups:
+  container_init:
+    path: /runtime/startup-01
+    observation_status: not_created
+services:
+  startup_controller:
+    state: failed
+    ready: false
+    last_stage: environment_prepare
+mounts:
+  /run/container/root:
+    available: false
+    observation_status: partial
+    preparation_error_details: not_collected
+    init_started: false

@@ -1,0 +1,12 @@
+metadata:
+  provenance: synthetic
+  pair_id: startup_mount_config
+  evidence_version: limited
+  model_incident_id: startup-incident-01-limited
+request:
+  symptom: "A container workload did not start and the startup controller timed out waiting for readiness"
+  target_component: "container_startup"
+  failure_timestamp: "2026-10-15T10:00:03"
+  diagnosis_scope: "container_runtime_boundary"
+  expected_behavior: "The container init process starts and reports ready"
+  observed_behavior: "The init process never appeared and readiness timed out"

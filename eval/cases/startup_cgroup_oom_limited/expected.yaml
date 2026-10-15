@@ -1,0 +1,14 @@
+primary_event_contains: "container startup readiness timeout"
+mechanism: "Hidden for evaluation: same local cgroup OOM kill as the complete version"
+allowed_conclusion: "The init process was killed, but ordinary SIGKILL, a cgroup OOM, and host pressure remain unresolved"
+required_unknowns:
+  - "No before/after local memory event counters were collected"
+  - "No cgroup-specific OOM record or host memory observation is available"
+unsupported_claims:
+  - "Signal 9 or exit 137 proves a current cgroup OOM"
+  - "A configured memory.max proves the limit was reached"
+removed_evidence_markers: ["oom_kill", "memory.events", "Memory cgroup out of memory", "MemAvailable", "memory_peak"]
+best_next_check: "Read the process cgroup path and paired before/after memory.events.local with memory.current, memory.max, memory.peak, and host memory availability"
+tool_coverage:
+  queryable: ["process exit", "configured cgroup path and limit"]
+  unavailable: ["event counter delta", "OOM kill record", "host pressure sample"]
