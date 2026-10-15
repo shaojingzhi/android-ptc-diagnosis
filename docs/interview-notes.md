@@ -557,6 +557,51 @@ actually shown during a run. It does **not** prove that a cited item semanticall
 that a hypothesis is reasonable, or that diagnosis quality improves. Whether a new model experiment
 is justified is a separate post-implementation decision; no DeepSeek or Daytona call was made here.
 
+### Registry-backed real-model smoke
+
+At implementation commit `f6ef86d`, one registry-backed Compact-DIRECT smoke was run on
+`runtime_service_unready_001` with DeepSeek `deepseek-v4-pro`, temperature 0, thinking disabled,
+the typed-reference nine-tool surface, and a six-tool-round cap. This was one case and one run—not
+an A/B test or an accuracy claim. The initial compact evidence and every returned tool result were
+converted to system-owned EvidenceItems; no unqueried runtime collection was preloaded. The model
+returned claims, evidence gaps, next checks, and references only. The 9,731-byte task, system prompt,
+and tool schema are bound to hashes in the trace.
+
+The run produced an accepted final after 5 model turns, 4 tool rounds, and 9 tool calls. It used
+56,950 input and 2,453 output tokens (59,403 total) in 116.18 seconds, with no tool or validation
+errors. The 60-item final registry contains only compact evidence and data returned by the selected
+log, discovery, service, cgroup, filter, and bounded-context calls. Every final reference resolves
+to that registry; repeated service evidence keeps one stable ID while retaining both discovery and
+inspection provenance.
+
+Manual review separates structural validity from semantic usefulness:
+
+- The readiness timeout, repeated not-ready errors, readiness-probe messages, app-visible failure,
+  and final crash are accurately tied to compact-group evidence. The service fields `state=starting`,
+  `ready=false`, `health=degraded`, `required_dependency=vendor_bridge`, and
+  `dependency_ready=false` match the actual returned runtime record.
+- The first observation is only partially supported: its state fields are factual, but “stuck” and
+  “the direct reason” are interpretations and its references omit the app symptom. The second
+  observation likewise turns `dependency_ready=false` into a causal “preventing” statement. Typed
+  references did not make those sentences semantically entailed.
+- The dependency hypothesis has a useful evidence basis, medium confidence, and explicit missing
+  evidence, but “most likely root cause” is stronger than the project’s preferred primary-candidate
+  language. The ThermalHAL hypothesis is clearly low confidence and explicitly says there is no
+  causal link.
+- The final preserves three material gaps: why `vendor_bridge` is not ready, whether ThermalHAL is
+  related, and unknown KMessage/Logcat cross-source ordering. Its next checks are concrete and
+  diagnostic rather than remediation, although the thermal investigation is lower-value and more
+  speculative than the dependency/service checks.
+
+Therefore this smoke answers only basic usability: a real model can copy system-generated IDs,
+produce a schema-valid referenced diagnosis, preserve useful unknowns, and suggest next checks.
+It does not show stable behavior, superiority to the previous contract, or semantic entailment.
+Because observation/hypothesis boundaries still need human review and the run is a single synthetic
+replay, the registry-backed path remains experimental rather than a demonstrated production
+diagnosis feature. The complete redacted trace is
+`experiments/runtime_service_unready_registry_backed_smoke_trace.jsonl`; historical traces and
+benchmarks were not changed.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
