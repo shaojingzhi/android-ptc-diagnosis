@@ -1,0 +1,96 @@
+{
+  "experiment_name": "lean-evidence-real-ab",
+  "status": "completed",
+  "implementation_commit": "9c28ed7958e7c7ae17f6dcd70159a478d8b77013",
+  "implementation_commit_sha256": "3c9c08260beb8e4c8a0c63b8ac6e84b3a37cd292e521e55aee68e851f185cf47",
+  "repository_commit_at_execution": "9c28ed7958e7c7ae17f6dcd70159a478d8b77013",
+  "case_id_for_offline_evaluation": "startup_dependency_unready_full",
+  "model_visible_incident_id": "incident-evidence-ab-01",
+  "execution_order": [
+    "hardened_baseline",
+    "lean"
+  ],
+  "model": {
+    "provider": "deepseek",
+    "name": "deepseek-v4-pro",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_tool_rounds": 6,
+    "provider_max_retries": 0
+  },
+  "arms": {
+    "hardened_baseline": {
+      "run_count": 1,
+      "reliability_hardening": true,
+      "deduplicated_evidence_view": false,
+      "task_prompt_sha256": "0bf95b8943b45332847fee1a5322fa99b47a2a6a6dcf6c2c9394b4c276710cce",
+      "trace_path": "experiments/lean-evidence-real-ab/baseline-trace.jsonl",
+      "trace_sha256": "9661c13eaf9031bf9a6c30d04d655b25bc7550609bfe7de150c335368515c6d4",
+      "result": {
+        "final_status": "accepted",
+        "model_turns": 7,
+        "tool_calling_rounds": 6,
+        "tool_calls": 10,
+        "invalid_tool_calls": 1,
+        "input_tokens": 99724,
+        "output_tokens": 2016,
+        "total_tokens": 101740,
+        "total_latency_ms": 26381.83270767331,
+        "finalization_fallback_triggered": false,
+        "evidence_registry_items": 56,
+        "unique_handles_referenced": 21,
+        "invalid_references": 0
+      }
+    },
+    "lean": {
+      "run_count": 1,
+      "reliability_hardening": true,
+      "deduplicated_evidence_view": true,
+      "task_prompt_sha256": "7a948dd01c184331262a0907b88fed31869bf56e6d3781e1edf8c05c5641ddde",
+      "trace_path": "experiments/lean-evidence-real-ab/lean-trace.jsonl",
+      "trace_sha256": "64e92702c112c36f0693a41d5ad6e0733a45f6c1bbf7e5b4ee5380e9e90d0f79",
+      "result": {
+        "final_status": "accepted",
+        "model_turns": 4,
+        "tool_calling_rounds": 3,
+        "tool_calls": 8,
+        "invalid_tool_calls": 0,
+        "input_tokens": 20304,
+        "output_tokens": 1567,
+        "total_tokens": 21871,
+        "total_latency_ms": 17874.15779195726,
+        "finalization_fallback_triggered": false,
+        "evidence_registry_items": 52,
+        "unique_handles_referenced": 25,
+        "invalid_references": 0
+      }
+    }
+  },
+  "shared_hashes": {
+    "system_prompt_sha256": "044817fafbddd2432d64d526df6b6fb2d2d4bbb913b3c90bf7c012b72169a451",
+    "tool_schema_sha256": "7814f2b58c188bf36f69e29128f6f3b20241bb77355f0d2a063801aba89a66ec",
+    "diagnosis_schema_sha256": "3eb458614b453c98dc0dfe53e624f0df85ed1121882571b4835523390e380647"
+  },
+  "model_input_file_sha256": {
+    "eval/cases/startup_dependency_unready_full/case.yaml": "38fff8ff5781da04d949aeeb2105d4db566683d27ab78cbe30d2f8460b925084",
+    "eval/cases/startup_dependency_unready_full/logcat.txt": "969f018e6107ea49e513fb0c93faa834f7d6ecd605fc906418c5052eb9cf5304",
+    "eval/cases/startup_dependency_unready_full/runtime_state.yaml": "578a9dd8ed1c72e273410fcf6574901b71aecdc03481edfe3b6d1eacf4516d9b"
+  },
+  "offline_evaluation_file_sha256": {
+    "eval/cases/startup_dependency_unready_full/expected.yaml": "8a4cb0d49de236236b785474771c7bd269bfa005b25d3b717b6d1ad44d25f7c7"
+  },
+  "frozen_offline_serialization_bytes": {
+    "baseline_initial_task": 9912,
+    "lean_initial_task": 5063,
+    "baseline_combined_tool_results": 35093,
+    "lean_combined_tool_results": 12152,
+    "baseline_cumulative_input": 263881,
+    "lean_cumulative_input": 114182
+  },
+  "observed_changes": {
+    "input_token_reduction_percent": 79.63980586418515,
+    "total_token_reduction_percent": 78.50304698250442,
+    "output_token_reduction_percent": 22.2718253968254,
+    "latency_reduction_percent": 32.248233130678386
+  }
+}

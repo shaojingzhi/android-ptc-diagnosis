@@ -797,6 +797,28 @@ reduction only. It does not establish DeepSeek token savings, latency improvemen
 preservation, or stable model use of handle/path pointers; those require a separately authorized
 controlled real-model comparison. The historical 79,300-token smoke and its trace remain unchanged.
 
+### Lean evidence real-model exploratory A/B
+
+One new DeepSeek run per arm compared the hardened and Lean representations on the same dependency
+case and neutral incident ID. Both finals were accepted with zero invalid evidence references. The
+baseline used 99,724 input tokens, 2,016 output tokens, 7 turns, and 10 calls; Lean used 20,304 input
+tokens, 1,567 output tokens, 4 turns, and 8 calls. Lean therefore used 79.64% fewer provider input
+tokens and 78.50% fewer total tokens in these two samples. Its 43 tool handle/path mappings all
+resolved to actually visible values, and its final correctly cited path-mapped service/process state.
+
+The result is not a pure serialization A/B after the first turn because the model chose different
+investigation paths. First-turn input fell from 4,354 to 2,754 tokens before tool history diverged,
+while the prior fixed-sequence analysis isolated a 56.7% byte reduction. The larger end-to-end saving
+also reflects Lean using three fewer turns, omitting mount/cgroup exploration, and avoiding the
+baseline's invalid cgroup lookup.
+
+Both diagnoses preserved the HostBridge readiness/listener/registration candidate and the unknown
+internal reason registration remained loading. Both also overreached with “never” wording, causal
+certainty stronger than the observed window, and an insufficiently supported classification of the
+ThermalMonitor warning as unrelated. Thus diagnosis usefulness was broadly preserved in this sample,
+but the experiment does not establish stable token savings, reliability, or semantic-quality
+equivalence. Full metrics and audits are in `experiments/lean-evidence-real-ab/comparison.md`.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
