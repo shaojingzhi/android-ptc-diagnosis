@@ -622,6 +622,32 @@ the right query or diagnosis. The catalog records, per pair, competing explanati
 conclusion depth, unsupported exclusions, remaining unknowns, and the highest-information next check:
 see [container-startup-case-catalog.md](container-startup-case-catalog.md).
 
+### Paired container-startup model evaluation
+
+The frozen registry-backed batch ran each complete/limited startup input exactly once with DeepSeek
+`deepseek-v4-pro`, temperature 0, thinking disabled, six tool rounds, and provider retries disabled.
+All prompts, schemas, input files, and execution order were hashed before the first response. Across
+eight independent runs, six finals were accepted, one returned prose instead of JSON, and one useful
+dependency diagnosis was rejected because it mistyped a single evidence ID. The batch used 32 model
+turns, 49 tool calls, 375,698 tokens, and 235.96 seconds in aggregate; these are descriptive numbers,
+not an accuracy estimate.
+
+The pairwise result is more informative than the accepted count. Complete mount evidence was actively
+confirmed through upper/work mount-state queries. Complete dependency evidence was actively read and
+narrowed to an unready listener while preserving the unknown internal readiness cause, though its
+final reference was invalid. Complete OOM and namespace mechanisms were largely already visible in
+initial compact logs, so they are initial-evidence hits rather than proof of active investigation.
+The accepted limited mount, dependency, and OOM outputs retained material gaps, but the OOM wording
+still overstated exit 137 as an OOM signature; limited namespace produced no final.
+
+Manual review also caught safety differences that schema validation cannot: one accepted namespace
+answer over-excluded security policy from a missing denial, and two complete answers suggested
+remediation rather than only diagnostic checks. The most frequent engineering issue was entity
+locator ergonomics—five runs issued at least one invalid mount/cgroup lookup. The next candidate
+improvement is a consistent discovery/typed-locator contract, not another Android-specific diagnosis
+rule. Full evidence IDs, per-run metrics, failures, and trace locations are in
+[container-startup-paired-model-evaluation.md](container-startup-paired-model-evaluation.md).
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
