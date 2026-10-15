@@ -425,6 +425,7 @@ class DirectTrace(BaseModel):
     model_turns: int = 0
     tool_calling_rounds: int = 0
     tool_calls: int = 0
+    model_call_details: list[dict[str, Any]] = Field(default_factory=list)
     tool_call_details: list[dict[str, Any]] = Field(default_factory=list)
     input_tokens: int | None = None
     output_tokens: int | None = None

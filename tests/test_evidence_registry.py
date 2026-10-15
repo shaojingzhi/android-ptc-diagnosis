@@ -253,3 +253,90 @@ def test_unknown_final_reference_is_rejected_but_fully_auditable():
     assert issue.stage == "reference_validation"
     assert issue.path == ["claims", 0, "evidence_refs", 0]
     assert "unknown evidence id" in issue.message
+
+
+def test_typed_runtime_query_supplies_system_id_and_accepts_final_reference():
+    events = _events()
+    runtime_state = {
+        "services": {
+            "runtime_service": {"state": "starting", "ready": False},
+        },
+        "processes": {
+            "unqueried_process": {"pid": 99, "state": "running"},
+        },
+        "cgroups": {},
+        "mounts": {},
+    }
+    service_ref = {
+        "entity_type": "service",
+        "entity_id": "service:runtime_service",
+        "canonical_name": "runtime_service",
+    }
+    service_result = inspect_service_state(runtime_state, name="runtime_service")
+    expected_item = next(
+        item
+        for item in EvidenceRegistry().add_tool_result(
+            tool_call_id="inspect-service",
+            tool_name="inspect_service_state_by_ref",
+            result=service_result,
+        )
+        if item.observation and item.observation.field == "ready"
+    )
+    model = FakeModel(
+        [
+            FakeResponse(
+                tool_calls=[
+                    {
+                        "id": "discover-service",
+                        "name": "discover_runtime_entities",
+                        "args": {"entity_type": "service"},
+                    }
+                ]
+            ),
+            FakeResponse(
+                tool_calls=[
+                    {
+                        "id": "inspect-service",
+                        "name": "inspect_service_state_by_ref",
+                        "args": {"entity_ref": service_ref},
+                    }
+                ]
+            ),
+            FakeResponse(content=json.dumps(_diagnosis(expected_item.evidence_id))),
+        ]
+    )
+
+    result = RegistryBackedCompactDirectExecutor(
+        model, events, runtime_state=runtime_state
+    ).run(_request())
+
+    assert result.trace.final_status == "accepted"
+    assert result.diagnosis is not None
+    assert [detail["tool"] for detail in result.trace.tool_call_details] == [
+        "discover_runtime_entities",
+        "inspect_service_state_by_ref",
+    ]
+    assert len(result.trace.model_call_details) == 3
+    assert result.trace.model_call_details[-1]["returned_final"] is True
+    registry = {item.evidence_id: item for item in result.evidence_registry}
+    assert expected_item.evidence_id in registry
+    assert all("unqueried_process" not in item.subject.id for item in registry.values())
+
+    tool_payloads = []
+    for message in model.messages[-1]:
+        content = (
+            message.get("content")
+            if isinstance(message, dict)
+            else getattr(message, "content", None)
+        )
+        if isinstance(content, str) and content.startswith("{"):
+            payload = json.loads(content)
+            if "_system_evidence_items" in payload:
+                tool_payloads.append(payload)
+    supplied_ids = {
+        item["evidence_id"]
+        for payload in tool_payloads
+        for item in payload["_system_evidence_items"]
+    }
+    assert expected_item.evidence_id in supplied_ids
+    assert "evidence_items" not in result.trace.final_parsed_payload

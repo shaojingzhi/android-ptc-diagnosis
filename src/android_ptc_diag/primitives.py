@@ -9,6 +9,7 @@ from typing import Any, Callable
 
 from .clustering import group_events_by_identity
 from .models import EntityReference, LogEvent
+from .skills import build_evidence_view, select_group_evidence_indices
 
 
 def _indices(events: list[LogEvent], selected: list[int] | None) -> list[int]:
@@ -561,5 +562,155 @@ def tool_handlers(events: list[LogEvent]) -> dict[str, Callable[..., dict[str, A
         "group_by_pid": lambda **kwargs: group_by_pid(events, **kwargs),
         "inspect_failure_context": lambda **kwargs: inspect_failure_context(
             events, **kwargs
+        ),
+    }
+
+
+def typed_reference_tool_definitions() -> list[dict[str, Any]]:
+    """Nine-tool evaluation surface with inventory-backed runtime references."""
+    entity_ref = {
+        "type": "object",
+        "properties": {
+            "entity_type": {
+                "type": "string",
+                "enum": ["process", "service", "mount"],
+            },
+            "entity_id": {"type": "string"},
+            "canonical_name": {"type": ["string", "null"]},
+        },
+        "required": ["entity_type", "entity_id"],
+        "additionalProperties": False,
+    }
+    return [
+        _function_spec(
+            "get_events",
+            "Read full normalized event records for explicit indices.",
+            {"indices": _INDICES},
+        ),
+        _function_spec(
+            "filter_by_text",
+            "Return indices whose message, tag, or component contains text.",
+            {"indices": _INDICES, "text": {"type": "string"}},
+            ["text"],
+        ),
+        _function_spec(
+            "inspect_group_evidence",
+            "Read bounded source-local evidence for compact group IDs.",
+            {
+                "group_ids": _INDICES,
+                "event_count": {"type": "integer", "minimum": 0},
+                "boundary_radius": {"type": "integer", "minimum": 0},
+            },
+            ["group_ids", "event_count"],
+        ),
+        _function_spec(
+            "inspect_failure_context",
+            "Read bounded context around failure-candidate event indices without inferring cause.",
+            {
+                "candidate_indices": _INDICES,
+                "before_seconds": {"type": "number", "minimum": 0},
+                "after_seconds": {"type": "number", "minimum": 0},
+                "max_events": {"type": "integer", "minimum": 1},
+            },
+            ["candidate_indices"],
+        ),
+        _function_spec(
+            "discover_runtime_entities",
+            "List canonical read-only references for one runtime entity type.",
+            {
+                "entity_type": {
+                    "type": "string",
+                    "enum": ["process", "service", "mount"],
+                }
+            },
+            ["entity_type"],
+        ),
+        _function_spec(
+            "inspect_process_state_by_ref",
+            "Read process state using a reference returned by discovery.",
+            {"entity_ref": entity_ref},
+            ["entity_ref"],
+        ),
+        _function_spec(
+            "inspect_service_state_by_ref",
+            "Read service state using a reference returned by discovery.",
+            {"entity_ref": entity_ref},
+            ["entity_ref"],
+        ),
+        _function_spec(
+            "inspect_cgroup_state",
+            "Read one deterministic replay cgroup record without changing state.",
+            {"name": {"type": "string"}},
+            ["name"],
+        ),
+        _function_spec(
+            "inspect_mount_state_by_ref",
+            "Read mount state using a reference returned by discovery.",
+            {"entity_ref": entity_ref},
+            ["entity_ref"],
+        ),
+    ]
+
+
+def typed_reference_tool_handlers(
+    events: list[LogEvent], runtime_state: dict[str, Any]
+) -> dict[str, Callable[..., dict[str, Any]]]:
+    """Bind the typed-reference tool surface to one replay run."""
+
+    def inspect_groups(
+        group_ids: list[int], event_count: int, boundary_radius: int = 1
+    ) -> dict[str, Any]:
+        if event_count != len(events):
+            raise ValueError(
+                f"event_count must equal replay event count {len(events)}"
+            )
+        available = {
+            group["group_id"]: group for group in group_by_template(events)["groups"]
+        }
+        selected = []
+        for group_id in group_ids:
+            if isinstance(group_id, bool) or not isinstance(group_id, int):
+                raise ValueError(f"invalid group_id: {group_id}")
+            group = available.get(group_id)
+            if group is None:
+                raise ValueError(f"invalid group_id: {group_id}")
+            selected.append(
+                {
+                    "representative_index": group["first_index"],
+                    "first_index": group["first_index"],
+                    "last_index": group["last_index"],
+                }
+            )
+        indices = select_group_evidence_indices(
+            selected, event_count, boundary_radius=boundary_radius
+        )
+        records = get_events(events, indices=indices)["events"]
+        return {
+            "indices": indices,
+            "count": len(records),
+            "evidence_view": build_evidence_view(records),
+        }
+
+    return {
+        "get_events": lambda **kwargs: get_events(events, **kwargs),
+        "filter_by_text": lambda **kwargs: filter_by_text(events, **kwargs),
+        "inspect_group_evidence": inspect_groups,
+        "inspect_failure_context": lambda **kwargs: inspect_failure_context(
+            events, **kwargs
+        ),
+        "discover_runtime_entities": lambda **kwargs: discover_runtime_entities(
+            runtime_state, **kwargs
+        ),
+        "inspect_process_state_by_ref": lambda **kwargs: inspect_process_state_by_ref(
+            runtime_state, **kwargs
+        ),
+        "inspect_service_state_by_ref": lambda **kwargs: inspect_service_state_by_ref(
+            runtime_state, **kwargs
+        ),
+        "inspect_cgroup_state": lambda **kwargs: inspect_cgroup_state(
+            runtime_state, **kwargs
+        ),
+        "inspect_mount_state_by_ref": lambda **kwargs: inspect_mount_state_by_ref(
+            runtime_state, **kwargs
         ),
     }

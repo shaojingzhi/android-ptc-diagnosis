@@ -29,7 +29,12 @@ from .models import (
     RegistryBackedRunResult,
     TriageRequest,
 )
-from .primitives import tool_definitions, tool_handlers
+from .primitives import (
+    tool_definitions,
+    tool_handlers,
+    typed_reference_tool_definitions,
+    typed_reference_tool_handlers,
+)
 
 
 MAX_TOOL_ROUNDS = 6
@@ -219,7 +224,9 @@ class DirectExecutor:
             model = self.model.bind_tools(self.tools)
             tool_rounds = 0
             while True:
+                model_started = time.perf_counter()
                 response = model.invoke(messages)
+                model_latency_ms = (time.perf_counter() - model_started) * 1000
                 trace.model_turns += 1
                 input_tokens, output_tokens = _usage(response)
                 if input_tokens is not None:
@@ -227,6 +234,16 @@ class DirectExecutor:
                 if output_tokens is not None:
                     trace.output_tokens = (trace.output_tokens or 0) + output_tokens
                 calls = _tool_calls(response)
+                trace.model_call_details.append(
+                    {
+                        "turn": trace.model_turns,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "latency_ms": model_latency_ms,
+                        "tool_names": [call["name"] for call in calls],
+                        "returned_final": not calls,
+                    }
+                )
                 if not calls:
                     diagnosis = self._audit_final(response, trace)
                     if diagnosis is not None:
@@ -478,9 +495,17 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
 
     final_model = RegistryBackedDiagnosis
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        *args: Any,
+        runtime_state: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ):
         super().__init__(*args, **kwargs)
         self.evidence_registry = EvidenceRegistry()
+        if runtime_state is not None:
+            self.tools = typed_reference_tool_definitions()
+            self.handlers = typed_reference_tool_handlers(self.events, runtime_state)
 
     def run(self, *args: Any, **kwargs: Any) -> RegistryBackedRunResult:
         self.evidence_registry = EvidenceRegistry()
