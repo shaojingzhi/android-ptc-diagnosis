@@ -262,7 +262,7 @@ def main() -> None:
             ).strip(),
             "total_tokens": (trace["input_tokens"] or 0)
             + (trace["output_tokens"] or 0),
-            "final": diagnosis.model_dump() if diagnosis else None,
+            "final": trace["final_parsed_payload"] if diagnosis else None,
             "primary_event_summaries": primary_summaries,
             "java_crash_located": any(index in crash_indices for index in primary_indices),
             "indices_valid": diagnosis is not None,

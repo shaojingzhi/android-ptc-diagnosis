@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from enum import StrEnum
 from typing import Any
+
+from pydantic import BaseModel, ValidationError
 
 from .compact import (
     DEFAULT_DETAILED_GROUP_LIMIT,
@@ -15,11 +18,31 @@ from .compact import (
     query_deferred_groups,
     two_level_model_view,
 )
-from .models import DirectDiagnosis, DirectRunResult, DirectTrace, LogEvent, TriageRequest
+from .evidence_registry import EvidenceReferenceError, EvidenceRegistry
+from .models import (
+    DirectDiagnosis,
+    DirectRunResult,
+    DirectTrace,
+    FinalValidationIssue,
+    LogEvent,
+    RegistryBackedDiagnosis,
+    RegistryBackedRunResult,
+    TriageRequest,
+)
 from .primitives import tool_definitions, tool_handlers
 
 
 MAX_TOOL_ROUNDS = 6
+_SECRET_PATTERN = re.compile(r"(?:sk-|dtn_)[A-Za-z0-9_-]+")
+_BEARER_PATTERN = re.compile(r"(?i)bearer\s+[A-Za-z0-9._-]+")
+_CREDENTIAL_FIELD_PATTERN = re.compile(
+    r'(?i)(["\']?(?:api[_-]?key|access[_-]?token|token|secret|password)'
+    r'["\']?\s*[:=]\s*["\'])([^"\']*)(["\'])'
+)
+_CREDENTIAL_BARE_PATTERN = re.compile(
+    r'(?i)(\b(?:api[_-]?key|access[_-]?token|token|secret|password)\b'
+    r'\s*[:=]\s*)(?!["\'])([^\s,}]+)'
+)
 
 DIRECT_SYSTEM_PROMPT = """You are diagnosing a noisy Android/container log replay.
 Use only the provided deterministic evidence primitives. Inspect evidence before
@@ -85,18 +108,42 @@ def _tool_message(call_id: str, name: str, result: dict[str, Any]) -> Any:
         return {"role": "tool", "tool_call_id": call_id, "name": name, "content": content}
 
 
-def _parse_diagnosis(response: Any) -> DirectDiagnosis:
-    text = _content(response).strip()
+def _parse_json_payload(text: str) -> Any:
+    text = text.strip()
     if text.startswith("```"):
         text = text.strip("`").removeprefix("json").strip()
     try:
-        payload = json.loads(text)
-    except json.JSONDecodeError:
+        return json.loads(text)
+    except json.JSONDecodeError as original_error:
         start, end = text.find("{"), text.rfind("}")
         if start < 0 or end <= start:
-            raise ValueError("final model response is not JSON") from None
-        payload = json.loads(text[start : end + 1])
-    return DirectDiagnosis.model_validate(payload)
+            raise original_error
+        return json.loads(text[start : end + 1])
+
+
+def _parse_diagnosis(response: Any) -> DirectDiagnosis:
+    return DirectDiagnosis.model_validate(_parse_json_payload(_content(response)))
+
+
+def _redact_text(value: str) -> str:
+    value = _SECRET_PATTERN.sub("<redacted>", value)
+    value = _BEARER_PATTERN.sub("Bearer <redacted>", value)
+    value = _CREDENTIAL_FIELD_PATTERN.sub(r"\1<redacted>\3", value)
+    return _CREDENTIAL_BARE_PATTERN.sub(r"\1<redacted>", value)
+
+
+def _redact_value(value: Any, key: str | None = None) -> Any:
+    if key and re.fullmatch(
+        r"(?i)(api[_-]?key|access[_-]?token|token|secret|password)", key
+    ):
+        return "<redacted>"
+    if isinstance(value, str):
+        return _redact_text(value)
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    if isinstance(value, dict):
+        return {name: _redact_value(item, name) for name, item in value.items()}
+    return value
 
 
 def _usage(response: Any) -> tuple[int | None, int | None]:
@@ -128,10 +175,11 @@ def _validate_diagnosis_indices(diagnosis: DirectDiagnosis, event_count: int) ->
         "propagation_event_indices",
     )
     for field in fields:
-        for index in getattr(diagnosis, field):
+        for position, index in enumerate(getattr(diagnosis, field)):
             if index < 0 or index >= event_count:
-                raise ValueError(
-                    f"invalid {field} index {index}; expected 0 <= index < {event_count}"
+                raise EvidenceReferenceError(
+                    f"invalid {field} index {index}; expected 0 <= index < {event_count}",
+                    [field, position],
                 )
 
 
@@ -144,6 +192,8 @@ class DirectExecutor:
         self.max_tool_rounds = max_tool_rounds
         self.tools = tool_definitions()
         self.handlers = tool_handlers(events)
+
+    final_model: type[BaseModel] = DirectDiagnosis
 
     def run(
         self,
@@ -159,6 +209,7 @@ class DirectExecutor:
             model=(model_metadata or {}).get("model"),
             provider=(model_metadata or {}).get("provider"),
             model_parameters=(model_metadata or {}).get("parameters", {}),
+            final_status="not_returned",
         )
         messages: list[Any] = [
             {"role": "system", "content": DIRECT_SYSTEM_PROMPT},
@@ -177,13 +228,12 @@ class DirectExecutor:
                     trace.output_tokens = (trace.output_tokens or 0) + output_tokens
                 calls = _tool_calls(response)
                 if not calls:
-                    diagnosis = _parse_diagnosis(response)
-                    _validate_diagnosis_indices(diagnosis, len(self.events))
-                    trace.primary_candidate_indices = diagnosis.primary_candidate_indices
-                    trace.evidence_indices = diagnosis.evidence_indices
-                    trace.propagation_event_indices = diagnosis.propagation_event_indices
-                    trace.total_latency_ms = (time.perf_counter() - started) * 1000
-                    return DirectRunResult(diagnosis=diagnosis, trace=trace)
+                    diagnosis = self._audit_final(response, trace)
+                    if diagnosis is not None:
+                        self._sync_trace_evidence(trace)
+                        trace.total_latency_ms = (time.perf_counter() - started) * 1000
+                        return self._success_result(diagnosis, trace)
+                    break
 
                 if tool_rounds >= self.max_tool_rounds:
                     trace.stopped_by_round_limit = True
@@ -193,6 +243,7 @@ class DirectExecutor:
                     )
                     trace.error = limit_error
                     trace.errors.append(limit_error)
+                    trace.stop_reason = limit_error
                     break
 
                 messages.append(response)
@@ -203,13 +254,108 @@ class DirectExecutor:
                     if detail.get("error"):
                         trace.error = trace.error or detail["error"]
                         trace.errors.append(detail["error"])
-                    messages.append(_tool_message(call["id"], call["name"] or "unknown", result))
+                    model_result = self._prepare_tool_result(call, result)
+                    messages.append(
+                        _tool_message(
+                            call["id"], call["name"] or "unknown", model_result
+                        )
+                    )
                 tool_rounds += 1
                 trace.tool_calling_rounds = tool_rounds
         except Exception as exc:  # noqa: BLE001 - preserve a structured trace for provider/tool failures
-            trace.error = str(exc)
-            trace.errors.append(str(exc))
+            message = _redact_text(str(exc))
+            trace.error = message
+            trace.errors.append(message)
+            if trace.final_status == "not_returned":
+                trace.stop_reason = "provider or executor exception before final"
+        self._sync_trace_evidence(trace)
         trace.total_latency_ms = (time.perf_counter() - started) * 1000
+        return self._failure_result(trace)
+
+    def _audit_final(self, response: Any, trace: DirectTrace) -> BaseModel | None:
+        raw_text = _content(response)
+        trace.final_raw_text = _redact_text(raw_text)
+        try:
+            payload = _parse_json_payload(raw_text)
+        except json.JSONDecodeError as exc:
+            self._record_final_error(
+                trace,
+                status="json_parse_failed",
+                stage="json_parse",
+                message=f"final model response is not JSON: {exc.msg}",
+                path=[],
+            )
+            return None
+
+        trace.final_parsed_payload = _redact_value(payload)
+        try:
+            diagnosis = self.final_model.model_validate(payload)
+        except ValidationError as exc:
+            trace.final_status = "schema_validation_failed"
+            for error in exc.errors(include_input=False, include_url=False):
+                message = error["msg"]
+                path = list(error.get("loc", ()))
+                trace.final_validation_errors.append(
+                    FinalValidationIssue(
+                        stage="schema_validation", message=message, path=path
+                    )
+                )
+                trace.errors.append(message)
+            trace.error = trace.error or _redact_text(str(exc))
+            return None
+
+        try:
+            self._validate_final(diagnosis)
+        except EvidenceReferenceError as exc:
+            self._record_final_error(
+                trace,
+                status="reference_validation_failed",
+                stage="reference_validation",
+                message=str(exc),
+                path=exc.path,
+            )
+            return None
+
+        trace.final_status = "accepted"
+        return diagnosis
+
+    @staticmethod
+    def _record_final_error(
+        trace: DirectTrace,
+        *,
+        status: str,
+        stage: str,
+        message: str,
+        path: list[str | int],
+    ) -> None:
+        trace.final_status = status
+        trace.final_validation_errors.append(
+            FinalValidationIssue(stage=stage, message=message, path=path)
+        )
+        trace.error = trace.error or message
+        trace.errors.append(message)
+
+    def _validate_final(self, diagnosis: BaseModel) -> None:
+        _validate_diagnosis_indices(diagnosis, len(self.events))
+
+    def _prepare_tool_result(
+        self, call: dict[str, Any], result: dict[str, Any]
+    ) -> dict[str, Any]:
+        return result
+
+    def _trace_evidence(self) -> list[Any]:
+        return []
+
+    def _sync_trace_evidence(self, trace: DirectTrace) -> None:
+        trace.evidence_registry = self._trace_evidence()
+
+    def _success_result(self, diagnosis: BaseModel, trace: DirectTrace) -> DirectRunResult:
+        trace.primary_candidate_indices = diagnosis.primary_candidate_indices
+        trace.evidence_indices = diagnosis.evidence_indices
+        trace.propagation_event_indices = diagnosis.propagation_event_indices
+        return DirectRunResult(diagnosis=diagnosis, trace=trace)
+
+    def _failure_result(self, trace: DirectTrace) -> DirectRunResult:
         return DirectRunResult(trace=trace)
 
     def _request_prompt(self, request: TriageRequest) -> str:
@@ -241,6 +387,7 @@ class DirectExecutor:
             error = str(exc)
         serialized = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
         detail = {
+            "tool_call_id": call.get("id"),
             "tool": name,
             "arguments": args,
             "record_count": _record_count(result),
@@ -324,6 +471,75 @@ class CompactDirectExecutor(DirectExecutor):
             "first raw event. Do not assume the compact representation itself proves causality."
         )
         return instructions + "\n" + json.dumps(payload, ensure_ascii=False)
+
+
+class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
+    """Opt-in compact DIRECT path with a system-owned evidence registry."""
+
+    final_model = RegistryBackedDiagnosis
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.evidence_registry = EvidenceRegistry()
+
+    def run(self, *args: Any, **kwargs: Any) -> RegistryBackedRunResult:
+        self.evidence_registry = EvidenceRegistry()
+        return super().run(*args, **kwargs)
+
+    def _request_prompt(self, request: TriageRequest) -> str:
+        base_prompt = super()._request_prompt(request)
+        instructions, serialized = base_prompt.rsplit("\n", 1)
+        payload = json.loads(serialized)
+        items = self.evidence_registry.add_compact_view(payload["compact_evidence"])
+        payload["evidence_registry"] = [
+            item.model_dump(mode="json") for item in items
+        ]
+        payload["output_schema"] = RegistryBackedDiagnosis.model_json_schema()
+        registry_instructions = (
+            " EvidenceItem records are system-generated from only the evidence shown "
+            "in this run. Cite their evidence_id values in claim evidence_refs. Do not "
+            "return or rewrite an evidence_items registry."
+        )
+        return instructions + registry_instructions + "\n" + json.dumps(
+            payload, ensure_ascii=False
+        )
+
+    def _prepare_tool_result(
+        self, call: dict[str, Any], result: dict[str, Any]
+    ) -> dict[str, Any]:
+        items = self.evidence_registry.add_tool_result(
+            tool_call_id=str(call["id"]),
+            tool_name=call["name"] or "unknown",
+            result=result,
+        )
+        if not items:
+            return result
+        return {
+            **result,
+            "_system_evidence_items": [
+                item.model_dump(mode="json") for item in items
+            ],
+        }
+
+    def _validate_final(self, diagnosis: BaseModel) -> None:
+        self.evidence_registry.validate_references(diagnosis)
+
+    def _trace_evidence(self) -> list[Any]:
+        return self.evidence_registry.snapshot()
+
+    def _success_result(
+        self, diagnosis: BaseModel, trace: DirectTrace
+    ) -> RegistryBackedRunResult:
+        return RegistryBackedRunResult(
+            diagnosis=diagnosis,
+            evidence_registry=self.evidence_registry.snapshot(),
+            trace=trace,
+        )
+
+    def _failure_result(self, trace: DirectTrace) -> RegistryBackedRunResult:
+        return RegistryBackedRunResult(
+            evidence_registry=self.evidence_registry.snapshot(), trace=trace
+        )
 
 
 class TwoLevelCompactDirectExecutor(CompactDirectExecutor):

@@ -2,7 +2,7 @@ import json
 
 from android_ptc_diag.clustering import cluster_events
 from android_ptc_diag.execution import DirectExecutor
-from android_ptc_diag.models import LogEvent, TriageRequest
+from android_ptc_diag.models import DirectTrace, LogEvent, TriageRequest
 
 
 class FakeResponse:
@@ -92,6 +92,10 @@ def test_direct_loop_returns_structured_final_after_tool_result():
     assert result.trace.stopped_by_round_limit is False
     assert result.trace.model_dump()["mode"] == "direct"
     assert result.trace.error is None
+    assert result.trace.final_status == "accepted"
+    assert json.loads(result.trace.final_raw_text)["primary_candidate_indices"] == [1]
+    assert result.trace.final_parsed_payload["primary_candidate_indices"] == [1]
+    assert result.trace.final_validation_errors == []
     assert model.bound_tools and len(model.bound_tools) == 9
 
 
@@ -143,6 +147,9 @@ def test_direct_loop_stops_at_round_limit():
     assert result.trace.stopped_by_round_limit is True
     assert "maximum tool rounds reached: 6" in result.trace.error
     assert "model requested another tool round" in result.trace.error
+    assert result.trace.final_status == "not_returned"
+    assert result.trace.final_raw_text is None
+    assert result.trace.stop_reason == result.trace.error
 
 
 def test_six_tool_rounds_can_finish_with_a_final_response():
@@ -186,11 +193,40 @@ def test_unknown_tool_is_returned_as_clear_tool_error():
 
 
 def test_invalid_final_json_is_recorded_without_raising():
-    result = DirectExecutor(FakeModel([FakeResponse(content="not valid json")]), _events()).run(_request())
+    result = DirectExecutor(
+        FakeModel([FakeResponse(content="not valid json sk-audit-secret")]), _events()
+    ).run(_request())
 
     assert result.diagnosis is None
     assert "final model response is not JSON" in result.trace.error
     assert result.trace.errors
+    assert result.trace.final_status == "json_parse_failed"
+    assert result.trace.final_raw_text == "not valid json <redacted>"
+    assert result.trace.final_parsed_payload is None
+    assert result.trace.final_validation_errors[0].stage == "json_parse"
+
+
+def test_schema_failure_preserves_raw_and_parsed_final_with_field_path():
+    raw = json.dumps(
+        {
+            "primary_candidate_indices": "not-a-list",
+            "evidence_indices": [],
+            "propagation_event_indices": [],
+            "notes": [],
+            "api_key": "should-not-survive",
+        }
+    )
+
+    result = DirectExecutor(FakeModel([FakeResponse(content=raw)]), _events()).run(
+        _request()
+    )
+
+    assert result.diagnosis is None
+    assert result.trace.final_status == "schema_validation_failed"
+    assert "should-not-survive" not in result.trace.final_raw_text
+    assert result.trace.final_parsed_payload["api_key"] == "<redacted>"
+    paths = [issue.path for issue in result.trace.final_validation_errors]
+    assert ["primary_candidate_indices"] in paths
 
 
 def test_invalid_tool_arguments_return_structured_error():
@@ -240,3 +276,25 @@ def test_invalid_final_indices_are_rejected():
 
     assert result.diagnosis is None
     assert "invalid primary_candidate_indices index 999" in result.trace.error
+    assert result.trace.final_status == "reference_validation_failed"
+    assert result.trace.final_parsed_payload["primary_candidate_indices"] == [999]
+    assert result.trace.final_validation_errors[0].path == [
+        "primary_candidate_indices",
+        0,
+    ]
+
+
+def test_old_direct_trace_payload_remains_readable():
+    trace = DirectTrace.model_validate(
+        {
+            "mode": "direct",
+            "model_turns": 2,
+            "errors": [],
+            "primary_candidate_indices": [1],
+        }
+    )
+
+    assert trace.model_turns == 2
+    assert trace.final_status is None
+    assert trace.final_raw_text is None
+    assert trace.evidence_registry == []

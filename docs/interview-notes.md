@@ -513,6 +513,50 @@ itself. Frozen traces are in
 `experiments/runtime_service_unready_structured_evidence_baseline_trace.jsonl` and
 `experiments/runtime_service_unready_structured_evidence_variant_trace.jsonl`.
 
+### System-managed evidence and rejected-final audit
+
+The structured-evidence experiment exposed two separate engineering problems. First, the model was
+asked to reproduce the evidence registry itself and produced malformed subject identities. Second,
+the one-shot evaluator kept validation errors but discarded the rejected final text, so the failed
+answer could not be audited claim by claim. The historical traces remain unchanged and their missing
+payloads were not reconstructed.
+
+Final handling now records a complete, secret-redacted text response before parsing. Additive trace
+fields then record the parsed payload when available, structured validation issues with field paths,
+and one explicit state: no final, JSON parse failure, schema failure, reference failure, or accepted
+final. A round-limit stop remains “no final” with its real stop reason; rejected finals remain
+available for human review but do not count as accepted diagnoses. Older traces omit these fields
+and still load with an unknown legacy final status rather than being mislabeled.
+
+An opt-in Compact-DIRECT path now owns a run-local evidence registry. The system converts each
+model-visible compact group into a `log_event` EvidenceItem, using the representative normalized
+event as its subject without guessing a process or service from log text. Recognized tool results
+add exact normalized event records, returned index matches, compact groups, discovered entity
+identities, or individual runtime-state field/value observations. IDs are deterministic hashes of
+source, typed subject, field, and actual value; repeated evidence reuses the ID and accumulates
+provenance pointers to compact-group or tool-result paths. The registry is reset on every run and
+never loads replay runtime inventory that a tool did not return.
+
+The model now returns only claims, evidence gaps, recommended next checks, and evidence-ID
+references. It cannot author or rewrite EvidenceItems in this path. The deterministic layer owns
+evidence identity, source fidelity, uniqueness, provenance, reference existence, validation stage,
+and tool-round budget. The model still owns observation/hypothesis language, interpretation,
+uncertainties, and suggested diagnostic checks. Entity evidence means only that an identity was
+shown; state claims require a separate runtime-state observation.
+
+Some tool returns cannot be mapped losslessly into the three EvidenceItem source types. The adapter
+therefore handles only explicit event/group/index/entity/runtime-state shapes. Unrecognized fields
+remain intact in the original tool result shown to the model but are not silently converted into a
+misleading EvidenceItem. Filter results expose only a returned event index, not unseen raw event
+content. This preserves compatibility without claiming a uniform semantic representation that the
+source data does not support.
+
+This change was validated only with deterministic fixtures and mocked model responses. It proves
+that accepted and rejected outputs are auditable and that registry values are faithful to the data
+actually shown during a run. It does **not** prove that a cited item semantically supports a claim,
+that a hypothesis is reasonable, or that diagnosis quality improves. Whether a new model experiment
+is justified is a separate post-implementation decision; no DeepSeek or Daytona call was made here.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

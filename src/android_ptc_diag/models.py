@@ -227,6 +227,19 @@ class EvidenceObservation(BaseModel):
     value: Any
 
 
+class EvidenceProvenance(BaseModel):
+    """Deterministic pointer back to model-visible source data."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    origin: Literal["compact_group", "tool_result"]
+    event_index: int | None = None
+    group_id: int | None = None
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    result_path: list[str | int] = Field(default_factory=list)
+
+
 class EvidenceItem(BaseModel):
     """Typed, inspectable evidence without semantic-entailment claims."""
 
@@ -236,6 +249,7 @@ class EvidenceItem(BaseModel):
     source_type: Literal["log_event", "runtime_state", "entity"]
     subject: EvidenceSubject
     observation: EvidenceObservation | None = None
+    provenance: list[EvidenceProvenance] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_observation_for_observed_sources(self) -> EvidenceItem:
@@ -312,6 +326,16 @@ class StructuredEvidenceDiagnosis(BaseModel):
         _validate_runtime_subject(subject_type, subject_id, runtime_state, field)
 
 
+class RegistryBackedDiagnosis(BaseModel):
+    """Diagnosis whose evidence items are supplied and owned by the system."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    claims: list[EvidenceItemClaim] = Field(min_length=1)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
+    recommended_next_checks: list[str] = Field(default_factory=list)
+
+
 def _validate_runtime_subject(
     subject_type: str,
     subject_id: str,
@@ -383,6 +407,14 @@ class DiagnosisLoopState(BaseModel):
     stop_reason: str | None = None
 
 
+class FinalValidationIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stage: Literal["json_parse", "schema_validation", "reference_validation"]
+    message: str
+    path: list[str | int] = Field(default_factory=list)
+
+
 class DirectTrace(BaseModel):
     case_id: str | None = None
     mode: Literal["direct"] = "direct"
@@ -403,8 +435,26 @@ class DirectTrace(BaseModel):
     primary_candidate_indices: list[int] = Field(default_factory=list)
     evidence_indices: list[int] = Field(default_factory=list)
     propagation_event_indices: list[int] = Field(default_factory=list)
+    final_status: Literal[
+        "not_returned",
+        "json_parse_failed",
+        "schema_validation_failed",
+        "reference_validation_failed",
+        "accepted",
+    ] | None = None
+    final_raw_text: str | None = None
+    final_parsed_payload: Any | None = None
+    final_validation_errors: list[FinalValidationIssue] = Field(default_factory=list)
+    stop_reason: str | None = None
+    evidence_registry: list[EvidenceItem] = Field(default_factory=list)
 
 
 class DirectRunResult(BaseModel):
     diagnosis: DirectDiagnosis | None = None
+    trace: DirectTrace
+
+
+class RegistryBackedRunResult(BaseModel):
+    diagnosis: RegistryBackedDiagnosis | None = None
+    evidence_registry: list[EvidenceItem] = Field(default_factory=list)
     trace: DirectTrace

@@ -116,7 +116,7 @@ def main() -> None:
             "compression_ratio": raw_bytes / compact_bytes,
             "evidence_recall": recall,
             "total_tokens": (trace["input_tokens"] or 0) + (trace["output_tokens"] or 0),
-            "final": diagnosis.model_dump() if diagnosis else None,
+            "final": trace["final_parsed_payload"] if diagnosis else None,
             "top1": bool(primary_messages and expected_text in primary_messages[0])
             if diagnosis
             else None,
