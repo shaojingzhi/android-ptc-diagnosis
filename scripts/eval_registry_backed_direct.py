@@ -1,4 +1,4 @@
-"""Run the single registry-backed Compact-DIRECT model smoke."""
+"""Run one registry-backed Compact-DIRECT model evaluation."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from android_ptc_diag.execution import (
 )
 
 
-CASE_ID = "runtime_service_unready_001"
+DEFAULT_CASE_ID = "runtime_service_unready_001"
 MODEL_NAME = "deepseek-v4-pro"
 
 
@@ -38,6 +38,7 @@ def _model() -> Any:
         api_key=api_key,
         base_url="https://api.deepseek.com",
         temperature=0,
+        max_retries=0,
         extra_body={"thinking": {"type": "disabled"}},
     )
 
@@ -50,38 +51,55 @@ def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def prepare_evaluation(root: Path, case_id: str) -> dict[str, Any]:
+    case_dir = root / "eval" / "cases" / case_id
+    if not case_dir.is_dir() or case_dir.parent != root / "eval" / "cases":
+        raise ValueError(f"unknown replay case: {case_id}")
+    request, _ = load_case(case_dir)
+    runtime_state = load_runtime_state(case_dir)
+    events = ReplayBackend(case_dir).collect_events(request)
+    cluster_events(events)
+    executor = RegistryBackedCompactDirectExecutor(
+        None, events, runtime_state=runtime_state
+    )
+    task_prompt = executor._request_prompt(request)
+    return {
+        "evaluation_case": case_id,
+        "request": request,
+        "runtime_state": runtime_state,
+        "events": events,
+        "task_prompt": task_prompt,
+        "tool_schema": executor.tools,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--case", default=DEFAULT_CASE_ID)
+    parser.add_argument("--incident-id")
+    parser.add_argument("--implementation-commit")
     parser.add_argument("--trace-file", type=Path, required=True)
     args = parser.parse_args()
     if args.trace_file.exists():
         raise SystemExit(f"refusing to overwrite trace: {args.trace_file}")
 
     root = Path(__file__).parents[1]
-    case_dir = root / "eval" / "cases" / CASE_ID
-    request, _ = load_case(case_dir)
-    runtime_state = load_runtime_state(case_dir)
-    events = ReplayBackend(case_dir).collect_events(request)
-    cluster_events(events)
-
-    audit_executor = RegistryBackedCompactDirectExecutor(
-        None, events, runtime_state=runtime_state
-    )
-    task_prompt = audit_executor._request_prompt(request)
-    tool_schema = audit_executor.tools
-    implementation_commit = subprocess.run(
+    incident_id = args.incident_id or args.case
+    prepared = prepare_evaluation(root, args.case)
+    repository_commit = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],
         cwd=root,
         check=True,
         capture_output=True,
         text=True,
     ).stdout.strip()
+    implementation_commit = args.implementation_commit or repository_commit
 
     result = RegistryBackedCompactDirectExecutor(
-        _model(), events, runtime_state=runtime_state
+        _model(), prepared["events"], runtime_state=prepared["runtime_state"]
     ).run(
-        request,
-        case_id=CASE_ID,
+        prepared["request"],
+        case_id=incident_id,
         model_metadata={
             "model": MODEL_NAME,
             "provider": "deepseek",
@@ -89,6 +107,7 @@ def main() -> None:
                 "temperature": 0,
                 "thinking": "disabled",
                 "max_tool_rounds": 6,
+                "provider_max_retries": 0,
             },
         },
     )
@@ -96,16 +115,28 @@ def main() -> None:
     trace.update(
         {
             "experiment": "registry_backed_real_model_smoke",
+            "evaluation_case": prepared["evaluation_case"],
+            "neutral_incident_id": incident_id,
             "implementation_commit": implementation_commit,
+            "repository_commit": repository_commit,
             "system_prompt": DIRECT_SYSTEM_PROMPT,
             "system_prompt_sha256": _sha256(DIRECT_SYSTEM_PROMPT),
-            "task_prompt": task_prompt,
-            "task_prompt_sha256": _sha256(task_prompt),
-            "task_prompt_bytes": len(task_prompt.encode("utf-8")),
-            "tool_names": [item["function"]["name"] for item in tool_schema],
-            "tool_schema_sha256": _sha256(_canonical_json(tool_schema)),
-            "total_tokens": (trace["input_tokens"] or 0)
-            + (trace["output_tokens"] or 0),
+            "task_prompt": prepared["task_prompt"],
+            "task_prompt_sha256": _sha256(prepared["task_prompt"]),
+            "task_prompt_bytes": len(prepared["task_prompt"].encode("utf-8")),
+            "tool_names": [
+                item["function"]["name"] for item in prepared["tool_schema"]
+            ],
+            "tool_schema_sha256": _sha256(
+                _canonical_json(prepared["tool_schema"])
+            ),
+            "provider_retry_policy": {"max_retries": 0},
+            "total_tokens": (
+                trace["input_tokens"] + trace["output_tokens"]
+                if trace["input_tokens"] is not None
+                and trace["output_tokens"] is not None
+                else None
+            ),
         }
     )
     args.trace_file.parent.mkdir(parents=True, exist_ok=True)

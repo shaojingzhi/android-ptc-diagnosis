@@ -87,6 +87,7 @@ def test_direct_loop_returns_structured_final_after_tool_result():
     assert result.trace.tool_calling_rounds == 1
     assert result.trace.tool_calls == 1
     assert result.trace.tool_call_details[0]["record_count"] == 2
+    assert result.trace.tool_call_details[0]["result"]["count"] == 2
     assert result.trace.input_event_count == 3
     assert result.trace.case_id == "direct-test"
     assert result.trace.stopped_by_round_limit is False

@@ -407,6 +407,7 @@ class DirectExecutor:
             "tool_call_id": call.get("id"),
             "tool": name,
             "arguments": args,
+            "result": _redact_value(result),
             "record_count": _record_count(result),
             "result_bytes": len(serialized.encode("utf-8")),
             "latency_ms": (time.perf_counter() - started) * 1000,
