@@ -51,7 +51,9 @@ def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def prepare_evaluation(root: Path, case_id: str) -> dict[str, Any]:
+def prepare_evaluation(
+    root: Path, case_id: str, *, reliability_hardening: bool = False
+) -> dict[str, Any]:
     case_dir = root / "eval" / "cases" / case_id
     if not case_dir.is_dir() or case_dir.parent != root / "eval" / "cases":
         raise ValueError(f"unknown replay case: {case_id}")
@@ -60,7 +62,10 @@ def prepare_evaluation(root: Path, case_id: str) -> dict[str, Any]:
     events = ReplayBackend(case_dir).collect_events(request)
     cluster_events(events)
     executor = RegistryBackedCompactDirectExecutor(
-        None, events, runtime_state=runtime_state
+        None,
+        events,
+        runtime_state=runtime_state,
+        reliability_hardening=reliability_hardening,
     )
     task_prompt = executor._request_prompt(request)
     return {
@@ -78,6 +83,7 @@ def main() -> None:
     parser.add_argument("--case", default=DEFAULT_CASE_ID)
     parser.add_argument("--incident-id")
     parser.add_argument("--implementation-commit")
+    parser.add_argument("--reliability-hardening", action="store_true")
     parser.add_argument("--trace-file", type=Path, required=True)
     args = parser.parse_args()
     if args.trace_file.exists():
@@ -85,7 +91,9 @@ def main() -> None:
 
     root = Path(__file__).parents[1]
     incident_id = args.incident_id or args.case
-    prepared = prepare_evaluation(root, args.case)
+    prepared = prepare_evaluation(
+        root, args.case, reliability_hardening=args.reliability_hardening
+    )
     repository_commit = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],
         cwd=root,
@@ -96,7 +104,10 @@ def main() -> None:
     implementation_commit = args.implementation_commit or repository_commit
 
     result = RegistryBackedCompactDirectExecutor(
-        _model(), prepared["events"], runtime_state=prepared["runtime_state"]
+        _model(),
+        prepared["events"],
+        runtime_state=prepared["runtime_state"],
+        reliability_hardening=args.reliability_hardening,
     ).run(
         prepared["request"],
         case_id=incident_id,
@@ -131,6 +142,7 @@ def main() -> None:
                 _canonical_json(prepared["tool_schema"])
             ),
             "provider_retry_policy": {"max_retries": 0},
+            "reliability_hardening": args.reliability_hardening,
             "total_tokens": (
                 trace["input_tokens"] + trace["output_tokens"]
                 if trace["input_tokens"] is not None

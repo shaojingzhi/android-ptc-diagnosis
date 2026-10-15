@@ -444,7 +444,15 @@ class DirectTrace(BaseModel):
     ] | None = None
     final_raw_text: str | None = None
     final_parsed_payload: Any | None = None
+    final_resolved_payload: Any | None = None
     final_validation_errors: list[FinalValidationIssue] = Field(default_factory=list)
+    evidence_handle_map: dict[str, str] = Field(default_factory=dict)
+    finalization_fallback_triggered: bool = False
+    initial_non_json_response: str | None = None
+    finalization_trigger_status: Literal["json_parse_failed"] | None = None
+    finalization_trigger_error: str | None = None
+    finalization_response: str | None = None
+    finalization_model_turn: int | None = None
     stop_reason: str | None = None
     evidence_registry: list[EvidenceItem] = Field(default_factory=list)
 

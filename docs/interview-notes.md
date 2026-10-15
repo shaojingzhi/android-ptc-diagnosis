@@ -697,6 +697,38 @@ The redacted trace and frozen input/config hashes are under
 usability only; it does not establish tool-selection reliability, diagnosis accuracy, stability, or
 token improvement. The original paired-evaluation traces and conclusions remain unchanged.
 
+### Registry-output reliability hardening
+
+Two paired-evaluation failures were interface failures rather than evidence-quality conclusions.
+`startup-eval-03` returned an ordinary planning sentence with no tool call, and the executor treated
+every no-tool response as a final JSON answer. `startup-eval-06` produced useful structured content
+but mistyped one long SHA256-derived EvidenceItem ID at `claims[6].evidence_refs[0]`; strict reference
+validation correctly rejected it.
+
+The opt-in hardened registry path now assigns run-local handles (`E001`, `E002`, ...) when evidence
+first becomes model-visible. Initial compact evidence and later tool evidence use the same handle
+space. Repeated evidence reuses its handle and later evidence never renumbers earlier entries. The
+model emits handles, while the system resolves them exactly to the unchanged canonical EvidenceItem
+IDs before normal reference validation. Unknown handles are rejected at their claim/reference path;
+there is no fuzzy matching, prefix repair, or silent substitution. Traces retain the model's handle
+payload, the handle-to-canonical map, a canonical resolved payload when resolution succeeds, and the
+original provenance-bearing registry.
+
+The same opt-in mode adds one finalization fallback only when a no-tool response has no parseable
+JSON. It preserves the original prose, appends a final-only instruction containing the live Pydantic
+schema, and invokes the configured model once without bound diagnostic tools. Valid JSON skips this
+call; schema or reference failures do not trigger it; a failed fallback is not retried; and tool
+round limits are unchanged. The implementation uses an instruction-constrained call rather than
+DeepSeek-specific `response_format`, because JSON mode has not been verified across the existing
+generic LangChain model interface. Pydantic and handle validation remain authoritative.
+
+Offline fake-model tests reproduce both failure mechanisms and verify stable handles, canonical
+resolution, provenance preservation, one-shot finalization, token/turn accounting, tool prohibition,
+strict failures, trace redaction, and default-path compatibility. The evaluation runner exposes this
+behavior through `--reliability-hardening`; its default remains the historical canonical-ID path.
+These tests prove deterministic interface behavior only. No paid model was called, so they do not
+show that a real model will reliably finalize, use handles correctly, or improve diagnosis accuracy.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。

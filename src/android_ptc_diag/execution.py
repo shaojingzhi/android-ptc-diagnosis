@@ -227,25 +227,16 @@ class DirectExecutor:
                 model_started = time.perf_counter()
                 response = model.invoke(messages)
                 model_latency_ms = (time.perf_counter() - model_started) * 1000
-                trace.model_turns += 1
-                input_tokens, output_tokens = _usage(response)
-                if input_tokens is not None:
-                    trace.input_tokens = (trace.input_tokens or 0) + input_tokens
-                if output_tokens is not None:
-                    trace.output_tokens = (trace.output_tokens or 0) + output_tokens
                 calls = _tool_calls(response)
-                trace.model_call_details.append(
-                    {
-                        "turn": trace.model_turns,
-                        "input_tokens": input_tokens,
-                        "output_tokens": output_tokens,
-                        "latency_ms": model_latency_ms,
-                        "tool_names": [call["name"] for call in calls],
-                        "returned_final": not calls,
-                    }
+                self._record_model_response(
+                    trace, response, calls, model_latency_ms
                 )
                 if not calls:
                     diagnosis = self._audit_final(response, trace)
+                    if diagnosis is None:
+                        diagnosis = self._try_finalization(
+                            messages, response, trace
+                        )
                     if diagnosis is not None:
                         self._sync_trace_evidence(trace)
                         trace.total_latency_ms = (time.perf_counter() - started) * 1000
@@ -322,6 +313,7 @@ class DirectExecutor:
             return None
 
         try:
+            diagnosis = self._prepare_final_diagnosis(diagnosis, trace)
             self._validate_final(diagnosis)
         except EvidenceReferenceError as exc:
             self._record_final_error(
@@ -335,6 +327,46 @@ class DirectExecutor:
 
         trace.final_status = "accepted"
         return diagnosis
+
+    def _prepare_final_diagnosis(
+        self, diagnosis: BaseModel, trace: DirectTrace
+    ) -> BaseModel:
+        return diagnosis
+
+    def _try_finalization(
+        self,
+        messages: list[Any],
+        response: Any,
+        trace: DirectTrace,
+    ) -> BaseModel | None:
+        return None
+
+    @staticmethod
+    def _record_model_response(
+        trace: DirectTrace,
+        response: Any,
+        calls: list[dict[str, Any]],
+        latency_ms: float,
+        *,
+        phase: str | None = None,
+    ) -> None:
+        trace.model_turns += 1
+        input_tokens, output_tokens = _usage(response)
+        if input_tokens is not None:
+            trace.input_tokens = (trace.input_tokens or 0) + input_tokens
+        if output_tokens is not None:
+            trace.output_tokens = (trace.output_tokens or 0) + output_tokens
+        detail = {
+            "turn": trace.model_turns,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "latency_ms": latency_ms,
+            "tool_names": [call["name"] for call in calls],
+            "returned_final": not calls,
+        }
+        if phase is not None:
+            detail["phase"] = phase
+        trace.model_call_details.append(detail)
 
     @staticmethod
     def _record_final_error(
@@ -500,9 +532,11 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
         self,
         *args: Any,
         runtime_state: dict[str, Any] | None = None,
+        reliability_hardening: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
+        self.reliability_hardening = reliability_hardening
         self.evidence_registry = EvidenceRegistry()
         if runtime_state is not None:
             self.tools = typed_reference_tool_definitions()
@@ -517,15 +551,25 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
         instructions, serialized = base_prompt.rsplit("\n", 1)
         payload = json.loads(serialized)
         items = self.evidence_registry.add_compact_view(payload["compact_evidence"])
-        payload["evidence_registry"] = [
-            item.model_dump(mode="json") for item in items
-        ]
+        if self.reliability_hardening:
+            payload["evidence_registry"] = self.evidence_registry.model_items(items)
+        else:
+            payload["evidence_registry"] = [
+                item.model_dump(mode="json") for item in items
+            ]
         payload["output_schema"] = RegistryBackedDiagnosis.model_json_schema()
-        registry_instructions = (
-            " EvidenceItem records are system-generated from only the evidence shown "
-            "in this run. Cite their evidence_id values in claim evidence_refs. Do not "
-            "return or rewrite an evidence_items registry."
-        )
+        if self.reliability_hardening:
+            registry_instructions = (
+                " EvidenceItem records are system-generated from only the evidence shown "
+                "in this run. Cite their short handle values (for example E001) in claim "
+                "evidence_refs. Do not return or rewrite an evidence_items registry."
+            )
+        else:
+            registry_instructions = (
+                " EvidenceItem records are system-generated from only the evidence shown "
+                "in this run. Cite their evidence_id values in claim evidence_refs. Do not "
+                "return or rewrite an evidence_items registry."
+            )
         return instructions + registry_instructions + "\n" + json.dumps(
             payload, ensure_ascii=False
         )
@@ -540,18 +584,106 @@ class RegistryBackedCompactDirectExecutor(CompactDirectExecutor):
         )
         if not items:
             return result
+        if self.reliability_hardening:
+            visible_items = self.evidence_registry.model_items(items)
+        else:
+            visible_items = [item.model_dump(mode="json") for item in items]
         return {
             **result,
-            "_system_evidence_items": [
-                item.model_dump(mode="json") for item in items
-            ],
+            "_system_evidence_items": visible_items,
         }
+
+    def _prepare_final_diagnosis(
+        self, diagnosis: BaseModel, trace: DirectTrace
+    ) -> BaseModel:
+        if not self.reliability_hardening:
+            return diagnosis
+        resolved = self.evidence_registry.resolve_references(diagnosis)
+        trace.final_resolved_payload = _redact_value(
+            resolved.model_dump(mode="json")
+        )
+        return resolved
 
     def _validate_final(self, diagnosis: BaseModel) -> None:
         self.evidence_registry.validate_references(diagnosis)
 
     def _trace_evidence(self) -> list[Any]:
         return self.evidence_registry.snapshot()
+
+    def _sync_trace_evidence(self, trace: DirectTrace) -> None:
+        super()._sync_trace_evidence(trace)
+        if self.reliability_hardening:
+            trace.evidence_handle_map = self.evidence_registry.handle_map()
+
+    def _try_finalization(
+        self,
+        messages: list[Any],
+        response: Any,
+        trace: DirectTrace,
+    ) -> BaseModel | None:
+        if not self.reliability_hardening or trace.final_status != "json_parse_failed":
+            return None
+
+        trace.finalization_fallback_triggered = True
+        trace.initial_non_json_response = trace.final_raw_text
+        trace.finalization_trigger_status = "json_parse_failed"
+        if trace.final_validation_errors:
+            trace.finalization_trigger_error = trace.final_validation_errors[-1].message
+        if trace.error == trace.finalization_trigger_error:
+            trace.error = None
+        trace.final_status = "not_returned"
+        trace.final_raw_text = None
+        trace.final_parsed_payload = None
+        trace.final_resolved_payload = None
+        trace.final_validation_errors = []
+
+        messages.append(response)
+        messages.append(
+            {
+                "role": "user",
+                "content": self._finalization_instruction(),
+            }
+        )
+        model_started = time.perf_counter()
+        final_response = self.model.invoke(messages)
+        model_latency_ms = (time.perf_counter() - model_started) * 1000
+        calls = _tool_calls(final_response)
+        self._record_model_response(
+            trace,
+            final_response,
+            calls,
+            model_latency_ms,
+            phase="finalization",
+        )
+        trace.finalization_model_turn = trace.model_turns
+        trace.finalization_response = _redact_text(_content(final_response))
+        if calls:
+            message = "finalization response requested tools; diagnostic tools are disabled"
+            trace.final_raw_text = trace.finalization_response
+            trace.error = message
+            trace.errors.append(message)
+            trace.stop_reason = message
+            return None
+
+        diagnosis = self._audit_final(final_response, trace)
+        if diagnosis is None:
+            trace.stop_reason = f"finalization fallback failed: {trace.final_status}"
+        return diagnosis
+
+    def _finalization_instruction(self) -> str:
+        schema = json.dumps(
+            self.final_model.model_json_schema(), ensure_ascii=False
+        )
+        handles = sorted(self.evidence_registry.handle_map())
+        return (
+            "The investigation phase is finished. Produce the final diagnosis as a JSON "
+            "object matching the schema below. Use only the Evidence Handles already "
+            "provided in this conversation. Separate observations from hypotheses, "
+            "preserve important missing evidence and uncertainty, and do not invent tool "
+            "results or observations. Do not call tools. Return JSON only.\n"
+            f"Available Evidence Handles: {json.dumps(handles)}\n"
+            f"Schema: {schema}"
+        )
 
     def _success_result(
         self, diagnosis: BaseModel, trace: DirectTrace

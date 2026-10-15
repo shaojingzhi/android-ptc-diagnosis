@@ -49,9 +49,45 @@ class EvidenceRegistry:
 
     def __init__(self) -> None:
         self._items: dict[str, EvidenceItem] = {}
+        self._handle_by_id: dict[str, str] = {}
+        self._id_by_handle: dict[str, str] = {}
 
     def snapshot(self) -> list[EvidenceItem]:
         return [item.model_copy(deep=True) for item in self._items.values()]
+
+    def model_items(self, items: Iterable[EvidenceItem]) -> list[dict[str, Any]]:
+        """Serialize evidence with stable run-local handles for model consumption."""
+        visible = []
+        for item in items:
+            if item.evidence_id not in self._items:
+                raise ValueError(f"unregistered evidence id: {item.evidence_id}")
+            handle = self._handle_by_id.get(item.evidence_id)
+            if handle is None:
+                handle = f"E{len(self._handle_by_id) + 1:03d}"
+                self._handle_by_id[item.evidence_id] = handle
+                self._id_by_handle[handle] = item.evidence_id
+            payload = item.model_dump(mode="json", exclude={"evidence_id"})
+            visible.append({"handle": handle, **payload})
+        return visible
+
+    def handle_map(self) -> dict[str, str]:
+        return dict(self._id_by_handle)
+
+    def resolve_references(
+        self, diagnosis: RegistryBackedDiagnosis
+    ) -> RegistryBackedDiagnosis:
+        """Resolve model-facing handles without guessing or changing the registry."""
+        payload = diagnosis.model_dump()
+        for claim_index, claim in enumerate(payload["claims"]):
+            for reference_index, handle in enumerate(claim["evidence_refs"]):
+                evidence_id = self._id_by_handle.get(handle)
+                if evidence_id is None:
+                    raise EvidenceReferenceError(
+                        f"unknown evidence handle: {handle}",
+                        ["claims", claim_index, "evidence_refs", reference_index],
+                    )
+                claim["evidence_refs"][reference_index] = evidence_id
+        return RegistryBackedDiagnosis.model_validate(payload)
 
     def add_compact_view(self, compact: dict[str, Any]) -> list[EvidenceItem]:
         added = []

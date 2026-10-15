@@ -298,4 +298,8 @@ def test_old_direct_trace_payload_remains_readable():
     assert trace.model_turns == 2
     assert trace.final_status is None
     assert trace.final_raw_text is None
+    assert trace.final_resolved_payload is None
+    assert trace.evidence_handle_map == {}
+    assert trace.finalization_fallback_triggered is False
+    assert trace.initial_non_json_response is None
     assert trace.evidence_registry == []
