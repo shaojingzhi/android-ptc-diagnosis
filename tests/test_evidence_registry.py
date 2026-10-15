@@ -522,7 +522,8 @@ def test_process_to_cgroup_typed_query_supplies_state_id_and_accepts_final_refer
     ]
     tool_payloads = {
         message.tool_call_id: json.loads(message.content)
-        for message in model.messages[-1]
+        for turn_messages in model.messages
+        for message in turn_messages
         if getattr(message, "tool_call_id", None)
     }
     process_payload = tool_payloads["inspect-process"]
