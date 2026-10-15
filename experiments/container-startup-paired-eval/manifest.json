@@ -1,0 +1,133 @@
+{
+  "experiment": "paired_container_startup_registry_direct",
+  "implementation_commit": "82ed471418e5364637ba347d7d395a5ed3367fa4",
+  "source_case_commit": "a86fc6b37955837f203a9e585d46f7552c7cbd69",
+  "system_prompt_sha256": "044817fafbddd2432d64d526df6b6fb2d2d4bbb913b3c90bf7c012b72169a451",
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-v4-pro",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_tool_rounds": 6,
+    "provider_max_retries": 0
+  },
+  "tool_names": [
+    "get_events",
+    "filter_by_text",
+    "inspect_group_evidence",
+    "inspect_failure_context",
+    "discover_runtime_entities",
+    "inspect_process_state_by_ref",
+    "inspect_service_state_by_ref",
+    "inspect_cgroup_state",
+    "inspect_mount_state_by_ref"
+  ],
+  "execution_order": [
+    {
+      "incident_id": "startup-eval-01",
+      "evaluation_case": "startup_dependency_unready_limited",
+      "model_input_files": {
+        "case.yaml": "d9151626d520ba867d07ce1cba2b8bad70efca51fce4b9a0826fbca4411b50d7",
+        "logcat.txt": "ad7e3916c4e8c8b22325ebc9d759c53b9b61f26698813f8e1b80a1857a894eb7",
+        "runtime_state.yaml": "89a913d1c9be4a0d27a48080d2e15c06b8323b7164d354467752df06ec0a3a7e"
+      },
+      "evaluation_only_expected_sha256": "2d77349d638d0bf56092c2eeea85cf678f16dc3c7ed5a0ad389407538bcf8429",
+      "task_prompt_sha256": "e53097bffe785bd7b0a3ee08d39044e670f603f6c8a56b54b581506351678ed2",
+      "task_prompt_bytes": 8849,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-02",
+      "evaluation_case": "startup_mount_config_full",
+      "model_input_files": {
+        "case.yaml": "9ddd1e54a417242c121c1633c2f82bf2f5ee87779a3b0ceb0827eb6ae0253882",
+        "logcat.txt": "dc2066239f0027560313119b178bded1182f88b2cf95f3ff5552adb42f9a9fde",
+        "kmsg.txt": "bdaa185ab4afb7d663e15764be858156cd555926f3cb7cc4875c48f4435668f8",
+        "runtime_state.yaml": "0e63bb33e1c8917192610c4ff7d2c2de27adba182bbf0d29bcdf814eb6f3d85f"
+      },
+      "evaluation_only_expected_sha256": "60cbc246cd024b57ea8b255a82a2096523a85d9f4dc1766315240ee9c777609f",
+      "task_prompt_sha256": "04767029d4db365c7cba83fcc83b1679e55e37a3bac4728fd3bc6a149191be68",
+      "task_prompt_bytes": 11764,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-03",
+      "evaluation_case": "startup_userns_limit_limited",
+      "model_input_files": {
+        "case.yaml": "4660a9ad00e7ca82634d2853415b7dcaf412b73b645d6a4df2ce5e672b9c728a",
+        "logcat.txt": "03eeab3bba4ad3f615a332810d4a0fea56817072f40d50dbb5f7854e1196d4cb",
+        "runtime_state.yaml": "e2ff755eb31c53e87e4439118e926c336937f1c9355859b5ed9206806043c0eb"
+      },
+      "evaluation_only_expected_sha256": "7b885745772c0119655a9ddddc24535eaa91f924a4286adbbc6f405cb94434f4",
+      "task_prompt_sha256": "681ecc732f51dd1603422ab01136506a158355ff90aed8d356c062f7353ca27c",
+      "task_prompt_bytes": 8885,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-04",
+      "evaluation_case": "startup_cgroup_oom_full",
+      "model_input_files": {
+        "case.yaml": "d1f1b346b67ae785358349b41a7da48429973cd889c286d7825e14f79e444f21",
+        "logcat.txt": "a4b1840586343c1066b7abf1b7d255a335cab5377a1fe35ffacf3becf630cfd7",
+        "kmsg.txt": "753deedfe17ed9da89e55979df9d451602353c3f42890eb6c258d7691bbe90e1",
+        "runtime_state.yaml": "cec5969983013c01bc35c7aa8ea8b2ad393a790fb14305cb7a7fe4b143b4de00"
+      },
+      "evaluation_only_expected_sha256": "175e712084e36b29ab073d7713ba0226ae140bcb311216af4907f894d085a237",
+      "task_prompt_sha256": "439c6dff8d2f5951aebb39f0016f13a1ac30094ae227667293fc0d5419d1bd91",
+      "task_prompt_bytes": 13306,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-05",
+      "evaluation_case": "startup_mount_config_limited",
+      "model_input_files": {
+        "case.yaml": "ee644b6b71d7aa9419ad345721374230466d695bf1e108e25e4a23f56c9d53c5",
+        "logcat.txt": "01043ecdd3385fe1a37ca8e9de664d39d4ec613e12e682172c8faa319815ec0c",
+        "runtime_state.yaml": "368170ffc202d78b6e4a03708f97ea73dd72fba5ee1d578d0de5303dd6c969e9"
+      },
+      "evaluation_only_expected_sha256": "dbf0eb1618d650e16904b2efe32377d069b109b62c65bd6034fbdd0e0c59919f",
+      "task_prompt_sha256": "368e65b3acd7a6e7cbeb2bbec1fca3838446fecaf62fa9713b4bdc967e9e7442",
+      "task_prompt_bytes": 9784,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-06",
+      "evaluation_case": "startup_dependency_unready_full",
+      "model_input_files": {
+        "case.yaml": "38fff8ff5781da04d949aeeb2105d4db566683d27ab78cbe30d2f8460b925084",
+        "logcat.txt": "969f018e6107ea49e513fb0c93faa834f7d6ecd605fc906418c5052eb9cf5304",
+        "runtime_state.yaml": "578a9dd8ed1c72e273410fcf6574901b71aecdc03481edfe3b6d1eacf4516d9b"
+      },
+      "evaluation_only_expected_sha256": "8a4cb0d49de236236b785474771c7bd269bfa005b25d3b717b6d1ad44d25f7c7",
+      "task_prompt_sha256": "bd67cca5fe7d08168969773ffcb37e14d1fd836f9fd979bc96efe9a2a6204949",
+      "task_prompt_bytes": 10766,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-07",
+      "evaluation_case": "startup_cgroup_oom_limited",
+      "model_input_files": {
+        "case.yaml": "f5cc99d218f3982f5d3981e5b7d2a5a75d90c351e0d36c9d4b09fc409e1988f9",
+        "logcat.txt": "393dab91b1fcf35dc64ea9ab8a1d63b7044920e130f675694f184b7bf7fb6998",
+        "runtime_state.yaml": "8f4f3a79f916b6da8808d6d64c450d67ff37f57be378fb7ac15ff12455ac64e6"
+      },
+      "evaluation_only_expected_sha256": "4dc9e86b87d031b033420bc9b74a38539bff9633fa04b87cd9123ecf862a30a3",
+      "task_prompt_sha256": "81d618b4659e449ec7970e5211d030549128d3c3028c4c163917404dfb9bdd02",
+      "task_prompt_bytes": 9531,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    },
+    {
+      "incident_id": "startup-eval-08",
+      "evaluation_case": "startup_userns_limit_full",
+      "model_input_files": {
+        "case.yaml": "701b59dd5acb8b07f5b84c77f02f7db3115d66515eb24dcbaed5b4b348a4f9ad",
+        "logcat.txt": "eb5434d5235d4b7bbccac9b6ef75e7a6a927bab664102276c4ff32c41c617b25",
+        "runtime_state.yaml": "f548fbb361c1aaab1d37670369ff902a07a0e2a59aa00e448fd7b6b882291379"
+      },
+      "evaluation_only_expected_sha256": "377485f12b0257f2896a28a68827992a4f5f4846a791cc3836347ce8841140ec",
+      "task_prompt_sha256": "5a8abdff1196ffc73ea717775b7ed75bda320d0967466b3fc5f7108a3fc876ee",
+      "task_prompt_bytes": 11826,
+      "tool_schema_sha256": "400117aa54d610522a0a18de86e0466a2500d15752ca49aadc18fe5fc4786097"
+    }
+  ]
+}
