@@ -1,0 +1,32 @@
+{
+  "experiment": "cgroup_typed_reference_real_model_smoke",
+  "run_count": 1,
+  "neutral_incident_id": "incident-20261015-01",
+  "evaluation_case": "startup_cgroup_oom_full",
+  "implementation_commit": "96baec48cc364c522b0aba51ddda3e2f17e6b024",
+  "model": "deepseek-v4-pro",
+  "parameters": {
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_tool_rounds": 6,
+    "provider_max_retries": 0
+  },
+  "input_file_sha256": {
+    "case.yaml": "d1f1b346b67ae785358349b41a7da48429973cd889c286d7825e14f79e444f21",
+    "kmsg.txt": "753deedfe17ed9da89e55979df9d451602353c3f42890eb6c258d7691bbe90e1",
+    "logcat.txt": "a4b1840586343c1066b7abf1b7d255a335cab5377a1fe35ffacf3becf630cfd7",
+    "runtime_state.yaml": "cec5969983013c01bc35c7aa8ea8b2ad393a790fb14305cb7a7fe4b143b4de00"
+  },
+  "system_prompt_sha256": "044817fafbddd2432d64d526df6b6fb2d2d4bbb913b3c90bf7c012b72169a451",
+  "task_prompt_sha256": "439c6dff8d2f5951aebb39f0016f13a1ac30094ae227667293fc0d5419d1bd91",
+  "tool_schema_sha256": "7814f2b58c188bf36f69e29128f6f3b20241bb77355f0d2a063801aba89a66ec",
+  "trace": "trace.jsonl",
+  "trace_sha256": "c90943854274a78c1c8021a6107e102f18c6cd69e5e3586b38665be8796e38e5",
+  "final_status": "accepted",
+  "rerun": false,
+  "notes": [
+    "expected.yaml was not loaded or exposed to the model",
+    "the case mapping is evaluation-only and the model saw the neutral incident ID",
+    "historical paired-evaluation traces were not modified"
+  ]
+}

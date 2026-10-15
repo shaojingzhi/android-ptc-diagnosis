@@ -669,6 +669,34 @@ both discovery and process-linked query chains, including registry-backed final 
 change has not been tested with a real model and therefore does not establish better tool-selection
 success, diagnosis quality, or token usage.
 
+### Cgroup typed-reference real-model smoke
+
+A single post-fix smoke used `startup_cgroup_oom_full` behind neutral incident ID
+`incident-20261015-01`. It ran DeepSeek `deepseek-v4-pro` with temperature 0, thinking disabled,
+six tool rounds, and provider retries disabled. This was one usability check, not a rerun of the
+eight-case batch or a controlled before/after comparison.
+
+The model first made one invalid call by putting `/runtime/startup-02` in `entity_id`. It then used
+cgroup discovery, received the canonical `cgroup:runtime_init` reference, passed that reference
+unchanged to `inspect_cgroup_state_by_ref`, and successfully read the path, memory limit/current/peak,
+local OOM counters before and after, host available memory, and observation-window status. The
+registry attached field-level provenance only after this inspection. The accepted final cited the
+returned cgroup counter, limit, peak, and host-memory EvidenceItems, so this run did exercise the new
+interface; it also shows that identity guessing was reduced by discovery but not eliminated.
+
+The run took 7 model turns, 6 tool rounds, 7 calls, 78,208 tokens, and 33.83 seconds. Its diagnosis
+combined PID/cgroup assignment, a local `oom_kill` counter increment, the KMessage kill record,
+limit/peak values, and host-memory evidence rather than treating exit 137 alone as proof. However,
+the final used stronger “root cause” and host-pressure exclusion language than the project should
+claim, did not cite the returned path EvidenceItem for every path assertion, and recommended raising
+the limit and retrying—a remediation action rather than a read-only diagnostic check. Format and
+reference validation therefore succeeded, while semantic review remains qualified.
+
+The redacted trace and frozen input/config hashes are under
+`experiments/cgroup-typed-reference-smoke/`. This one synthetic replay demonstrates basic tool-chain
+usability only; it does not establish tool-selection reliability, diagnosis accuracy, stability, or
+token improvement. The original paired-evaluation traces and conclusions remain unchanged.
+
 ## Known limitations
 
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
