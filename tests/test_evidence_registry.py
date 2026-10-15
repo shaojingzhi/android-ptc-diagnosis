@@ -224,7 +224,12 @@ def test_tool_evidence_is_registered_and_supplied_before_final_reference():
 
     assert result.diagnosis is not None
     tool_message = model.messages[1][-1]
-    payload = json.loads(tool_message.content)
+    content = (
+        tool_message["content"]
+        if isinstance(tool_message, dict)
+        else tool_message.content
+    )
+    payload = json.loads(content)
     supplied_ids = {
         item["evidence_id"] for item in payload["_system_evidence_items"]
     }
