@@ -1,0 +1,9 @@
+metadata:
+  provenance: public_case_adapted
+  model_incident_id: public-incident-03
+request:
+  symptom: "A container task could not start after the runtime attempted to connect to its shim"
+  target_component: "container_startup"
+  diagnosis_scope: "container_runtime_boundary"
+  expected_behavior: "The runtime connects to the shim and starts the container task"
+  observed_behavior: "Task creation stopped while connecting to the shim socket"

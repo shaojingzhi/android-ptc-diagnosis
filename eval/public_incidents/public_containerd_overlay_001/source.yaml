@@ -1,0 +1,24 @@
+source_kind: upstream_issue_excerpt
+repository: containerd/containerd
+issue: 10228
+url: https://github.com/containerd/containerd/issues/10228
+checked_at: "2026-10-20"
+license_note: "Short attributed operational excerpt; the repository license is not assumed to license issue text"
+reported_versions: ["containerd v1.6.24", "containerd v1.7.13", "runc v1.1.2"]
+artifact:
+  file: source_excerpt.txt
+  model_visible_copy: logcat.txt
+  content_transform: none
+  sha256: aa6346b702b1831faf138858b324bde4535a437936b6d77d19316f8d6b49df04
+resolution:
+  url: https://github.com/containerd/containerd/pull/10274
+  merge_commit: 21c244d4369856c2b81fdcf9af75645f712f5d04
+  scope: "Remove the volatile option while CRI prepares image volumes"
+supports:
+  - "A reported pod start failed while containerd mounted an overlay rootfs component"
+  - "The reported mount options included volatile, workdir, upperdir, and lowerdir"
+  - "The returned error was invalid argument"
+not_claimed:
+  - "This repository reproduced the incident"
+  - "The excerpt is Android Logcat"
+  - "Every possible invalid-argument cause was excluded"

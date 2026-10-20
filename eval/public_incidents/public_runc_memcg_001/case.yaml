@@ -1,0 +1,9 @@
+metadata:
+  provenance: public_case_adapted
+  model_incident_id: public-incident-02
+request:
+  symptom: "A Kubernetes container init process disappeared during startup"
+  target_component: "container_startup"
+  diagnosis_scope: "container_runtime_boundary"
+  expected_behavior: "The container init process remains alive long enough to complete startup"
+  observed_behavior: "The init process was killed before startup completed"

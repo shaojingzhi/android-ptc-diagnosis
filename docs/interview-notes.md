@@ -821,6 +821,22 @@ equivalence. Full metrics and audits are in `experiments/lean-evidence-real-ab/c
 
 ## Known limitations
 
+### Public upstream incident authenticity check
+
+Three short, attributed upstream incident excerpts were added as `public_case_adapted`: a containerd
+overlay rootfs mount failure, a runc init memory-cgroup OOM from Kubernetes CI, and a containerd/Kata
+shim connection failure. The source excerpt and model-visible copy are byte-identical and hash-pinned;
+source analysis and evaluation criteria remain model-invisible. Offline validation confirmed that all
+seven records survive normalization and compact grouping with their event/source-line provenance.
+
+The exercise also exposed a concrete boundary: the current parser tolerates journald/containerd text
+without dropping it, but does not extract its embedded timestamp, severity, PID, or component. The
+decisive OOM-kill line therefore ranks outside FIXED Top-3 even though generic text lookup can retrieve
+it. No runtime-state observation was invented to fill gaps in the public reports. This is evidence that
+the current ingestion path is Android-Logcat-centric, not evidence that the diagnosis agent succeeds
+on general Linux container incidents. Full characterization and source links are in
+[`public-incident-authenticity-validation.md`](public-incident-authenticity-validation.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。

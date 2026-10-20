@@ -1,0 +1,20 @@
+source_kind: upstream_issue_excerpt
+repository: containerd/containerd
+issue: 10846
+url: https://github.com/containerd/containerd/issues/10846
+checked_at: "2026-10-20"
+license_note: "Short attributed operational excerpt; the repository license is not assumed to license issue text"
+reported_versions: ["containerd v1.6.34", "containerd v1.6.36", "Go 1.21", "Go 1.22"]
+artifact:
+  file: source_excerpt.txt
+  model_visible_copy: logcat.txt
+  content_transform: none
+  sha256: 69eaf49c2bd5baa36d26b7a7b2bd1b784cf205a458f869e793022dbe34aad4a1
+supports:
+  - "A reported task start failed while connecting to a Kata shim abstract Unix socket"
+  - "The immediate connection result was connection refused"
+  - "The reporter supplied a Go 1.21/1.22 client-server reproduction matrix"
+not_claimed:
+  - "The compatibility explanation was independently reproduced by this repository"
+  - "Every connection-refused cause was excluded"
+  - "The issue represents an Android production incident"

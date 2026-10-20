@@ -1,0 +1,5 @@
+Oct 08 17:28:42 tmp-node-e2e-7aba7327-cos-beta-117-18613-0-76 kernel: CPU: 0 PID: 52432 Comm: runc:[2:INIT] Tainted: G           O       6.6.44+ #1
+Oct 08 17:28:42 tmp-node-e2e-7aba7327-cos-beta-117-18613-0-76 kernel: memory: usage 15360kB, limit 15360kB, failcnt 49
+Oct 08 17:28:42 tmp-node-e2e-7aba7327-cos-beta-117-18613-0-76 kernel: Memory cgroup stats for /kubepods/burstable/pod6e4665e8-ae02-48b1-aee9-fedeeb899d20:
+Oct 08 17:28:42 tmp-node-e2e-7aba7327-cos-beta-117-18613-0-76 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=0eec9f496bc31187cd00a14d2debd8b4bb89cc81bfc2301ee425e30c07572398,mems_allowed=0,oom_memcg=/kubepods/burstable/pod6e4665e8-ae02-48b1-aee9-fedeeb899d20,task_memcg=/kubepods/burstable/pod6e4665e8-ae02-48b1-aee9-fedeeb899d20/0eec9f496bc31187cd00a14d2debd8b4bb89cc81bfc2301ee425e30c07572398,task=runc:[2:INIT],pid=52432,uid=65535
+Oct 08 17:28:42 tmp-node-e2e-7aba7327-cos-beta-117-18613-0-76 kernel: Memory cgroup out of memory: Killed process 52432 (runc:[2:INIT]) total-vm:1606060kB, anon-rss:3496kB, file-rss:1152kB, shmem-rss:5888kB, UID:65535 pgtables:160kB oom_score_adj:-998

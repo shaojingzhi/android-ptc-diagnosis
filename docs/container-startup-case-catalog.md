@@ -1,5 +1,9 @@
 # Container startup diagnosis case catalog
 
+Public upstream incident excerpts are characterized separately in
+[`public-incident-authenticity-validation.md`](public-incident-authenticity-validation.md). They do
+not replace the paired synthetic cases below and are not counted as locally reproduced data.
+
 这组数据用于离线评估 Android container runtime 启动失败诊断。它包含四个配对案例；每对的
 `full` 与 `limited` 是同一设定机制的两种 evidence availability，不是八个独立样本。模型输入
 位于各目录的 `case.yaml`、日志和 `runtime_state.yaml`；隐藏评估标准单独位于

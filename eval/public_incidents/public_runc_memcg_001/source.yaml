@@ -1,0 +1,20 @@
+source_kind: upstream_ci_issue_excerpt
+repository: opencontainers/runc
+issue: 4427
+url: https://github.com/opencontainers/runc/issues/4427
+checked_at: "2026-10-20"
+license_note: "Short attributed operational excerpt; the repository license is not assumed to license issue text"
+reported_versions: ["runc v1.1.15", "Linux 6.6.44+", "cgroup v2"]
+artifact:
+  file: source_excerpt.txt
+  model_visible_copy: kmsg.txt
+  content_transform: none
+  sha256: 6a6bcfffbab362b63334efdbccd86e4a041ec964fa4d0694b0063b59f914ba0d
+supports:
+  - "The kernel selected runc:[2:INIT] PID 52432 in a memory-cgroup OOM"
+  - "The sampled memory cgroup had a 15360kB limit and was at that limit"
+  - "The log names the pod and task cgroup paths"
+not_claimed:
+  - "The host had no memory pressure"
+  - "The precise runc/containerd regression mechanism is established by this excerpt"
+  - "This repository reproduced the Kubernetes CI failure"

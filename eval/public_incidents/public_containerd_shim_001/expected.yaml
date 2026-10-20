@@ -1,0 +1,13 @@
+primary_event_contains: "failed to start shim"
+allowed_conclusion: "Task startup failed at the containerd-to-shim socket connection boundary with connection refused"
+supporting_evidence_contains:
+  - "dial unix"
+  - "shim.sock"
+  - "connection refused"
+unsupported_claims:
+  - "The shim process definitely crashed"
+  - "The Go compatibility explanation is proven by this single log record"
+  - "The socket path itself proves the responsible component"
+source_limitations:
+  - "Only the immediate task-start error is included as model-visible evidence"
+  - "No process, listener, or socket state was captured"

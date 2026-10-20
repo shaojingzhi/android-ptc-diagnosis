@@ -1,0 +1,13 @@
+primary_event_contains: "failed to mount rootfs component"
+allowed_conclusion: "The observed startup failed in overlay rootfs mount preparation with the shown volatile/work/upper/lower options"
+supporting_evidence_contains:
+  - "volatile index=off"
+  - "invalid argument"
+unsupported_claims:
+  - "The kernel has an OverlayFS bug"
+  - "The workdir and upperdir are on different filesystems"
+  - "The project reproduced this incident locally"
+source_limitations:
+  - "Only one reporter-provided error record is included"
+  - "No kernel log or mountinfo snapshot accompanies the excerpt"
+

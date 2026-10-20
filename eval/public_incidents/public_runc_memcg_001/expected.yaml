@@ -1,0 +1,14 @@
+primary_event_contains: "Memory cgroup out of memory: Killed process 52432"
+allowed_conclusion: "The observed runc init process was killed by a memory-cgroup OOM at the recorded cgroup limit"
+supporting_evidence_contains:
+  - "constraint=CONSTRAINT_MEMCG"
+  - "usage 15360kB, limit 15360kB"
+  - "task=runc:[2:INIT],pid=52432"
+unsupported_claims:
+  - "The host was definitely not under memory pressure"
+  - "Exit code 137 alone proves this diagnosis"
+  - "The exact software regression is proven by the selected excerpt"
+source_limitations:
+  - "The case contains a selected kernel excerpt, not the complete CI artifact"
+  - "No before/after memory.events snapshot is present"
+
