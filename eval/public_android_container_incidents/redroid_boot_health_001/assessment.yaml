@@ -1,0 +1,40 @@
+model_visible: false
+evidence:
+  container_state:
+    file: container_inspect.json
+    fields:
+      State.Status: running
+      State.Running: true
+      State.OOMKilled: false
+      State.ExitCode: 0
+      State.StartedAt: "2024-02-23T03:24:49.976895714Z"
+  process_snapshot:
+    file: process_snapshot.txt
+    observed_processes:
+      system_server: 1527
+      zygote64: 1432
+      zygote: 1433
+      adbd: 83
+      com.android.systemui: 1656
+      com.android.launcher3: 2015
+  crash_buffer:
+    file: logcat.txt
+    observations:
+      - "system_server PID 251 received SIGSEGV in an android.bg thread"
+      - "The first native frame was memtrack_proc_new in libmemtrack.so"
+      - "Launcher and SystemUI then reported DeadSystemException"
+      - "The audio HAL service subsequently received SIGABRT"
+supported_conclusions:
+  - "The captured container inspect state was running, and the process snapshot contained critical Android processes"
+  - "A system_server native crash occurred during the captured boot interval"
+  - "The DeadSystemException records are downstream observations of the system process death"
+  - "Fatal crash records alone do not prove that the container failed to boot"
+uncertainties:
+  - "The exact capture time of ps.txt and container-inspect.txt is not encoded inside those files"
+  - "The underlying reason memtrack_proc_new faulted is not established"
+  - "The relationship between the reporter's tty/reconnect symptom and the system_server crash is not established"
+unsupported_claims:
+  - "Missing Binder support caused the incident"
+  - "libmemtrack or the host kernel contains a proven bug"
+  - "The container remained healthy after the snapshot"
+  - "The audio-service crash was the primary failure"

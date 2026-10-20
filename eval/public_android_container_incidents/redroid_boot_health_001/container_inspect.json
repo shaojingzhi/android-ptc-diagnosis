@@ -1,0 +1,218 @@
+[
+    {
+        "Id": "e9da04e97870eaf8168ea9e5224630f9274f57a236ec6f8ed16cbf36f41d3d60",
+        "Created": "2024-02-23T03:24:49.717875368Z",
+        "Path": "/init",
+        "Args": [
+            "androidboot.hardware=redroid",
+            "androidboot.redroid_gpu_mode=guest"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 34090,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2024-02-23T03:24:49.976895714Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:4ef8cac27331957386899d590274cee09f62ddfa9693b6b0b15c54fcc954e2cb",
+        "ResolvConfPath": "/var/lib/docker/containers/e9da04e97870eaf8168ea9e5224630f9274f57a236ec6f8ed16cbf36f41d3d60/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/e9da04e97870eaf8168ea9e5224630f9274f57a236ec6f8ed16cbf36f41d3d60/hostname",
+        "HostsPath": "/var/lib/docker/containers/e9da04e97870eaf8168ea9e5224630f9274f57a236ec6f8ed16cbf36f41d3d60/hosts",
+        "LogPath": "/var/lib/docker/containers/e9da04e97870eaf8168ea9e5224630f9274f57a236ec6f8ed16cbf36f41d3d60/e9da04e97870eaf8168ea9e5224630f9274f57a236ec6f8ed16cbf36f41d3d60-json.log",
+        "Name": "/redroid11",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "unconfined",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/root/data:/data"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "default",
+            "PortBindings": {
+                "5555/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "5555"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": true,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                21,
+                250
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "host",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": true,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "label=disable"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": false,
+            "PidsLimit": null,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": null,
+            "ReadonlyPaths": null
+        },
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/42ec6068b6f0c77347f0601c6e3af6849653834bf442f09ff0c56b645b40daec-init/diff:/var/lib/docker/overlay2/d1b426ee91ea6d203633d8ca04094b8e294b4c2388fbc16f9b9be569002a9391/diff",
+                "MergedDir": "/var/lib/docker/overlay2/42ec6068b6f0c77347f0601c6e3af6849653834bf442f09ff0c56b645b40daec/merged",
+                "UpperDir": "/var/lib/docker/overlay2/42ec6068b6f0c77347f0601c6e3af6849653834bf442f09ff0c56b645b40daec/diff",
+                "WorkDir": "/var/lib/docker/overlay2/42ec6068b6f0c77347f0601c6e3af6849653834bf442f09ff0c56b645b40daec/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/root/data",
+                "Destination": "/data",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "e9da04e97870",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "5555/tcp": {}
+            },
+            "Tty": true,
+            "OpenStdin": true,
+            "StdinOnce": false,
+            "Env": null,
+            "Cmd": [
+                "androidboot.redroid_gpu_mode=guest"
+            ],
+            "Image": "redroid/redroid:11.0.0-latest",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": [
+                "/init",
+                "androidboot.hardware=redroid"
+            ],
+            "OnBuild": null,
+            "Labels": {
+                "io.buildah.version": "1.33.1"
+            }
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "2191a4e74f7611bccd146359b73a59b9f26b22422d7dcd8e8df57a5fb46182ba",
+            "SandboxKey": "/var/run/docker/netns/2191a4e74f76",
+            "Ports": {
+                "5555/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "5555"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "5555"
+                    }
+                ]
+            },
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "ded3f4d5eb634e55aad61303dc405b1d73f8396a487632b27b732a7d1cf41097",
+            "Gateway": "172.17.0.1",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "172.17.0.2",
+            "IPPrefixLen": 16,
+            "IPv6Gateway": "",
+            "MacAddress": "02:42:ac:11:00:02",
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "MacAddress": "02:42:ac:11:00:02",
+                    "NetworkID": "f160a18bdd61ce68b4aeb4b618e74f716d4910b878935c542055c5d4d1fadfcd",
+                    "EndpointID": "ded3f4d5eb634e55aad61303dc405b1d73f8396a487632b27b732a7d1cf41097",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DriverOpts": null,
+                    "DNSNames": null
+                }
+            }
+        }
+    }
+]

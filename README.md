@@ -145,6 +145,12 @@ provenance behavior on records captured from real devices; they do not supply
 root-cause ground truth. See
 [`docs/public-android-logcat-validation.md`](docs/public-android-logcat-validation.md).
 
+A public redroid incident under `eval/public_android_container_incidents/` combines
+real Android crash-buffer Logcat with byte-exact process and container-state snapshots.
+It validates the distinction between a fatal Android system-process event and the
+captured container boot state without claiming a proven native root cause. See
+[`docs/public-android-container-validation.md`](docs/public-android-container-validation.md).
+
 `binder_flood_001` is a deterministic synthetic stress case for repeated
 downstream Binder and service-unavailable errors. Binder is used as a
 runtime/service-health signal, not as an attempt to diagnose Binder internals.

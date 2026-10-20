@@ -1,0 +1,56 @@
+provenance: public_android_container_incident
+project: remote-android/redroid-doc
+issue: 623
+issue_url: https://github.com/remote-android/redroid-doc/issues/623
+attachment_url: https://github.com/remote-android/redroid-doc/files/14381389/tmp.mNvxE0bhaB.zip
+checked_at: "2026-10-20"
+reported_environment:
+  host: "Ubuntu 20.04 in a Windows 10 virtual machine"
+  host_kernel: 5.4.0-172-generic
+  container_image: redroid/redroid:11.0.0-latest
+  android_build: redroid_x86_64 Android 11
+source_archive:
+  advertised_name: tmp.mNvxE0bhaB.zip
+  actual_format: tar.gz
+  sha256: 033e7ace718cadb5bf126173f22bb03c641610dd22481b6fe4150a58947d541c
+  bytes: 601090
+preserved_files:
+  - source_path: tmp/tmp.mNvxE0bhaB/crash.txt
+    local_file: logcat.txt
+    content_transform: rename_only
+    sha256: b6dbab68be47e5b176265c89881703ddb64096173f5f3b870c7a55098427c60c
+    bytes: 11614
+    lines: 76
+  - source_path: tmp/tmp.mNvxE0bhaB/ps.txt
+    local_file: process_snapshot.txt
+    content_transform: rename_only
+    sha256: e5d5412be64ccfa30b52c1897f415cb4c0cc7c9d2a367aa0fa86419a68a0c771
+    bytes: 7266
+    lines: 83
+  - source_path: tmp/tmp.mNvxE0bhaB/container-inspect.txt
+    local_file: container_inspect.json
+    content_transform: rename_only
+    sha256: 3a11b2869185eba892bfedc1f5703fc511e56188b1eb04f1e6e747baba561fe8
+    bytes: 7872
+    lines: 218
+uncommitted_source_files:
+  - source_path: tmp/tmp.mNvxE0bhaB/logcat.txt
+    reason: "Full 8,166-line capture contains host/network identifiers not needed for this bounded validation"
+    sha256: ff67ecec25ccebfa50bc9adb0907161ffe0ed0c6ac4b681a7898cd58bb9bcd53
+    bytes: 897772
+    lines: 8166
+maintainer_interpretation:
+  author: zhouziyang
+  url: https://github.com/remote-android/redroid-doc/issues/623#issuecomment-1960919690
+  statement: "According to ps.txt, the redroid container boot succeeded; a fatal system crash also occurred during boot and required further inspection if repeated"
+reporter_followup:
+  url: https://github.com/remote-android/redroid-doc/issues/623#issuecomment-1960936056
+  statement: "The reporter retried the connection and confirmed that it worked"
+license_note: "Short attributed public issue artifacts; the repository license is not assumed to license issue attachments"
+privacy_note: "Preserved artifacts contain public container/process/build/internal-network identifiers but no detected credential or personal account data"
+not_claimed:
+  - "This repository locally reproduced the incident"
+  - "The system_server SIGSEGV root cause was established"
+  - "The reported tty/reconnect symptom was caused by the crash"
+  - "One running snapshot proves long-term health"
+  - "The incident demonstrates a Binder or kernel defect"

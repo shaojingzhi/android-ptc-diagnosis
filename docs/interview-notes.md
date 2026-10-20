@@ -853,6 +853,22 @@ lowmemorykiller, and SurfaceFlinger messages that must not automatically become 
 source ledgers, deterministic results, and reuse boundaries are in
 [`public-android-logcat-validation.md`](public-android-logcat-validation.md).
 
+### Public Android-container incident validation
+
+redroid issue #623 supplies the missing intersection between authentic Android Logcat and container
+runtime state. Its byte-exact crash buffer records a system_server SIGSEGV, memtrack backtrace,
+DeadSystem propagation, and a later audio-service abort. Separate source artifacts report the Docker
+container as running and show system_server, zygotes, adbd, SystemUI, and Launcher in the captured
+process snapshot. The maintainer interpreted the boot as successful despite the fatal crash, and the
+reporter confirmed that a later connection worked.
+
+This is a useful negative attribution story: a fatal system-process record is not equivalent to
+“the container failed to boot.” The evidence supports a captured running state plus an observed crash,
+but it does not establish why `memtrack_proc_new` faulted, whether that crash caused the reported tty
+symptom, or whether recovery remained stable. Offline parsing retained all 75 diagnostic records in
+45 groups with exact source-line provenance; no runtime state or root-cause label was invented. See
+[`public-android-container-validation.md`](public-android-container-validation.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。

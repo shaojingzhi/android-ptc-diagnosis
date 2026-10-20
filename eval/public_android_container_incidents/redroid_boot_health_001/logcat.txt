@@ -1,0 +1,76 @@
+--------- beginning of crash
+02-23 03:24:54.822   251   276 F libc    : Fatal signal 11 (SIGSEGV), code 128 (SI_KERNEL), fault addr 0x0 in tid 276 (android.bg), pid 251 (system_server)
+02-23 03:24:55.096  1101  1101 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+02-23 03:24:55.096  1101  1101 F DEBUG   : Build fingerprint: 'redroid/redroid_x86_64/redroid_x86_64:11/RD2A.211001.002/eng.frank.20231013.063253:userdebug/test-keys'
+02-23 03:24:55.096  1101  1101 F DEBUG   : Revision: '0'
+02-23 03:24:55.096  1101  1101 F DEBUG   : ABI: 'x86_64'
+02-23 03:24:55.096  1101  1101 F DEBUG   : Timestamp: 2024-02-23 03:24:55+0000
+02-23 03:24:55.096  1101  1101 F DEBUG   : pid: 251, tid: 276, name: android.bg  >>> system_server <<<
+02-23 03:24:55.096  1101  1101 F DEBUG   : uid: 1000
+02-23 03:24:55.096  1101  1101 F DEBUG   : signal 11 (SIGSEGV), code 128 (SI_KERNEL), fault addr 0x0
+02-23 03:24:55.096  1101  1101 F DEBUG   :     rax 00007f23896fcf58  rbx 0000000000000060  rcx 0000000000000100  rdx 00007f26283c0e30
+02-23 03:24:55.096  1101  1101 F DEBUG   :     r8  ffffffffffffff00  r9  0000000000000001  r10 0000000000000007  r11 0000000000000000
+02-23 03:24:55.096  1101  1101 F DEBUG   :     r12 0000000000000000  r13 00007f2453fcb3f0  r14 000000000003cee2  r15 00007f23347396d0
+02-23 03:24:55.096  1101  1101 F DEBUG   :     rdi 00007f23347390d0  rsi 0000000000000001
+02-23 03:24:55.096  1101  1101 F DEBUG   :     rbp 0000000000000060  rsp 00007f2334739590  rip 00007f26272af15e
+02-23 03:24:55.472  1101  1101 F DEBUG   : backtrace:
+02-23 03:24:55.472  1101  1101 F DEBUG   :       #00 pc 000000000000215e  /system/lib64/libmemtrack.so (memtrack_proc_new+14) (BuildId: 4badf617a2d83ba759f11339dd902101)
+02-23 03:24:55.472  1101  1101 F DEBUG   :       #01 pc 0000000000111d6e  /system/lib64/libandroid_runtime.so (android::read_memtrack_memory(int, android::graphics_memory_pss*)+14) (BuildId: 7f2d42d7f2f6b4505fd6edc601ec0864)
+02-23 03:24:55.472  1101  1101 F DEBUG   :       #02 pc 0000000000110e22  /system/lib64/libandroid_runtime.so (android::android_os_Debug_getPssPid(_JNIEnv*, _jobject*, int, _jlongArray*, _jlongArray*)+82) (BuildId: 7f2d42d7f2f6b4505fd6edc601ec0864)
+02-23 03:24:55.472  1101  1101 F DEBUG   :       #03 pc 000000000023403b  /system/framework/x86_64/boot-framework.oat (art_jni_trampoline+267) (BuildId: 486e7e1c0e08904fd2fe05e3a38720af25dcf574)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #04 pc 000000000121c814  /system/framework/oat/x86_64/services.odex (com.android.server.am.ActivityManagerService$5.handleMessage+1108) (BuildId: 91209780ebb5da6e9909a4b50b3de7447091befd)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #05 pc 000000000066d0c7  /system/framework/x86_64/boot-framework.oat (android.os.Handler.dispatchMessage+183) (BuildId: 486e7e1c0e08904fd2fe05e3a38720af25dcf574)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #06 pc 0000000000670489  /system/framework/x86_64/boot-framework.oat (android.os.Looper.loop+1433) (BuildId: 486e7e1c0e08904fd2fe05e3a38720af25dcf574)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #07 pc 000000000066f1cb  /system/framework/x86_64/boot-framework.oat (android.os.HandlerThread.run+507) (BuildId: 486e7e1c0e08904fd2fe05e3a38720af25dcf574)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #08 pc 0000000000178db4  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+756) (BuildId: bed3d54c6ba67824d67edb3d6d8f028e)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #09 pc 000000000020bb92  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+242) (BuildId: bed3d54c6ba67824d67edb3d6d8f028e)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #10 pc 000000000062a33e  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeVirtualOrInterfaceWithJValues<art::ArtMethod*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, art::ArtMethod*, jvalue const*)+478) (BuildId: bed3d54c6ba67824d67edb3d6d8f028e)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #11 pc 000000000068d9c3  /apex/com.android.art/lib64/libart.so (art::Thread::CreateCallback(void*)+1411) (BuildId: bed3d54c6ba67824d67edb3d6d8f028e)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #12 pc 00000000000c815a  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+58) (BuildId: 367a43aefd68123bf118851437b2730e)
+02-23 03:24:55.473  1101  1101 F DEBUG   :       #13 pc 000000000005f4e7  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+55) (BuildId: 367a43aefd68123bf118851437b2730e)
+02-23 03:24:56.263   717   747 E AndroidRuntime: FATAL EXCEPTION: launcher-loader
+02-23 03:24:56.263   717   747 E AndroidRuntime: Process: com.android.launcher3, PID: 717
+02-23 03:24:56.263   717   747 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+02-23 03:24:56.280   391   391 E AndroidRuntime: FATAL EXCEPTION: main
+02-23 03:24:56.280   391   391 E AndroidRuntime: Process: com.android.systemui, PID: 391
+02-23 03:24:56.280   391   391 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+02-23 03:24:56.336    59   120 F libc    : /buildbot/src/android/ndk-release-r23/toolchain/llvm-project/libcxx/../../../toolchain/llvm-project/libcxxabi/src/abort_message.cpp:72: abort_message: assertion "terminating" failed
+02-23 03:24:56.337    59   120 F libc    : Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 120 (HwBinder:59_1), pid 59 (audio.service)
+02-23 03:24:56.346  1425  1425 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+02-23 03:24:56.346  1425  1425 F DEBUG   : Build fingerprint: 'redroid/redroid_x86_64/redroid_x86_64:11/RD2A.211001.002/eng.frank.20231013.063253:userdebug/test-keys'
+02-23 03:24:56.346  1425  1425 F DEBUG   : Revision: '0'
+02-23 03:24:56.346  1425  1425 F DEBUG   : ABI: 'x86'
+02-23 03:24:56.346  1425  1425 F DEBUG   : Timestamp: 2024-02-23 03:24:56+0000
+02-23 03:24:56.346  1425  1425 F DEBUG   : pid: 59, tid: 120, name: HwBinder:59_1  >>> /vendor/bin/hw/android.hardware.audio.service <<<
+02-23 03:24:56.346  1425  1425 F DEBUG   : uid: 1041
+02-23 03:24:56.346  1425  1425 F DEBUG   : signal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------
+02-23 03:24:56.346  1425  1425 F DEBUG   : Abort message: '/buildbot/src/android/ndk-release-r23/toolchain/llvm-project/libcxx/../../../toolchain/llvm-project/libcxxabi/src/abort_message.cpp:72: abort_message: assertion "terminating" failed'
+02-23 03:24:56.346  1425  1425 F DEBUG   :     eax 00000000  ebx 0000003b  ecx 00000078  edx 00000006
+02-23 03:24:56.346  1425  1425 F DEBUG   :     edi ed2f581e  esi ec48a810
+02-23 03:24:56.346  1425  1425 F DEBUG   :     ebp eddf2d90  esp ec48a7b8  eip eddf2d99
+02-23 03:24:56.352  1425  1425 F DEBUG   : backtrace:
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #00 pc 00000d99  [vdso] (__kernel_vsyscall+9)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #01 pc 0005b3e8  /apex/com.android.runtime/lib/bionic/libc.so (syscall+40) (BuildId: a9827ed2eeb48572d9f00a06c690d153)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #02 pc 00076ae1  /apex/com.android.runtime/lib/bionic/libc.so (abort+209) (BuildId: a9827ed2eeb48572d9f00a06c690d153)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #03 pc 00076fe1  /apex/com.android.runtime/lib/bionic/libc.so (__assert2+49) (BuildId: a9827ed2eeb48572d9f00a06c690d153)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #04 pc 000cb554  /vendor/lib/libc++_shared.so (BuildId: dbfa6bc85c9f80f5ee21e5ce5958bd32c820118f)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #05 pc 000cb688  /vendor/lib/libc++_shared.so (BuildId: dbfa6bc85c9f80f5ee21e5ce5958bd32c820118f)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #06 pc 000e4a69  /vendor/lib/libc++_shared.so (BuildId: dbfa6bc85c9f80f5ee21e5ce5958bd32c820118f)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #07 pc 000e499d  /vendor/lib/libc++_shared.so (std::terminate()+45) (BuildId: dbfa6bc85c9f80f5ee21e5ce5958bd32c820118f)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #08 pc 000ca5e8  /vendor/lib/libc++_shared.so (std::__ndk1::thread::~thread()+40) (BuildId: dbfa6bc85c9f80f5ee21e5ce5958bd32c820118f)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #09 pc 000067a5  /vendor/lib/hw/audio.primary.redroid.so
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #10 pc 00019f91  /vendor/lib/hw/android.hardware.audio@6.0-impl.so (virtual thunk to android::hardware::audio::V6_0::implementation::Device::~Device()+97) (BuildId: 388fdc9eae3de349edac03c5299eff13)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #11 pc 0001026f  /apex/com.android.vndk.v30/lib/libutils.so (android::RefBase::decStrong(void const*) const+95) (BuildId: 511f5ea9dd534b036fe5cdc0fca770e1)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #12 pc 0002913e  /vendor/lib/hw/android.hardware.audio@6.0-impl.so (android::hardware::audio::V6_0::implementation::StreamOut::~StreamOut()+510) (BuildId: 388fdc9eae3de349edac03c5299eff13)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #13 pc 00029314  /vendor/lib/hw/android.hardware.audio@6.0-impl.so (virtual thunk to android::hardware::audio::V6_0::implementation::StreamOut::~StreamOut()+52) (BuildId: 388fdc9eae3de349edac03c5299eff13)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #14 pc 0001026f  /apex/com.android.vndk.v30/lib/libutils.so (android::RefBase::decStrong(void const*) const+95) (BuildId: 511f5ea9dd534b036fe5cdc0fca770e1)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #15 pc 000acbbc  /apex/com.android.vndk.v30/lib/libhidlbase.so (android::hidl::base::V1_0::BnHwBase::~BnHwBase()+204) (BuildId: dd926467fe957243a89e03f55cc10dbc)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #16 pc 000d66f6  /apex/com.android.vndk.v30/lib/android.hardware.audio@6.0.so (android::hardware::audio::V6_0::BnHwStreamOut::~BnHwStreamOut()+214) (BuildId: 200f42ae815f212b2fd31c3d6873f0ec)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #17 pc 000d68d4  /apex/com.android.vndk.v30/lib/android.hardware.audio@6.0.so (virtual thunk to android::hardware::audio::V6_0::BnHwStreamOut::~BnHwStreamOut()+52) (BuildId: 200f42ae815f212b2fd31c3d6873f0ec)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #18 pc 0001026f  /apex/com.android.vndk.v30/lib/libutils.so (android::RefBase::decStrong(void const*) const+95) (BuildId: 511f5ea9dd534b036fe5cdc0fca770e1)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #19 pc 000baa25  /apex/com.android.vndk.v30/lib/libhidlbase.so (android::hardware::IPCThreadState::joinThreadPool(bool)+293) (BuildId: dd926467fe957243a89e03f55cc10dbc)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #20 pc 000ccb79  /apex/com.android.vndk.v30/lib/libhidlbase.so (android::hardware::PoolThread::threadLoop()+41) (BuildId: dd926467fe957243a89e03f55cc10dbc)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #21 pc 00015116  /apex/com.android.vndk.v30/lib/libutils.so (android::Thread::_threadLoop(void*)+374) (BuildId: 511f5ea9dd534b036fe5cdc0fca770e1)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #22 pc 000147d9  /apex/com.android.vndk.v30/lib/libutils.so (thread_data_t::trampoline(thread_data_t const*)+457) (BuildId: 511f5ea9dd534b036fe5cdc0fca770e1)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #23 pc 000e48d4  /apex/com.android.runtime/lib/bionic/libc.so (__pthread_start(void*)+100) (BuildId: a9827ed2eeb48572d9f00a06c690d153)
+02-23 03:24:56.352  1425  1425 F DEBUG   :       #24 pc 00078bd7  /apex/com.android.runtime/lib/bionic/libc.so (__start_thread+71) (BuildId: a9827ed2eeb48572d9f00a06c690d153)
