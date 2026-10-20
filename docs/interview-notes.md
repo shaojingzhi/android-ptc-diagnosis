@@ -908,6 +908,19 @@ only what the supplied evidence supports, then be audited against the independen
 stronger ground truth than the earlier redroid case, but still not our own reproduction or a reporter-posted
 before/after fix verification. See [`waydroid-hwcomposer-validation.md`](waydroid-hwcomposer-validation.md).
 
+One frozen registry-backed run found the correct hwcomposer null-dereference candidate despite FIXED
+ranking an earlier cgroup ERROR first. It returned an accepted, fully resolvable final in 4 turns / 6 tool
+calls / 123,695 tokens / 33.3 seconds and correctly connected SurfaceFlinger and system-process DEAD_OBJECT
+records as propagation. Independent upstream source supports the missing-Wayland-pointer mechanism, but
+that answer was not exposed to the model; the model localized the native Wayland call path and recommended
+checking Wayland state without naming the exact source field.
+
+The same run preserves important limitations: it materialized all 157 events before using the higher-level
+context primitive, overclaimed that the observed crash was globally “earliest,” overstated the scope and
+persistence of cgroup failures, and mixed a cgroup remediation into recommended checks. This is a useful
+real-data attribution success with an auditable confirmed mechanism, not evidence of general accuracy.
+See [`../experiments/waydroid-hwcomposer-registry-smoke/audit.md`](../experiments/waydroid-hwcomposer-registry-smoke/audit.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。

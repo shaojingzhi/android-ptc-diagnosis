@@ -55,3 +55,17 @@ uv run python scripts/eval_public_android_container_workflow.py \
 
 The model sees a neutral incident description and the actual compact/log evidence. It does not see the
 case directory name, issue discussion, fix commit, model-invisible assessment, or upstream conclusion.
+
+## One registry-backed workflow smoke
+
+One frozen `deepseek-v4-pro` run on commit `a783d5a` produced an accepted final in four model turns and
+six tool calls, using 120,794 input and 2,901 output tokens over 33.3 seconds. It selected the hwcomposer
+null dereference as the primary candidate, correctly distinguished SurfaceFlinger/system-process
+`DEAD_OBJECT` records as propagation, and treated the earlier cgroup errors as coexisting rather than
+the initiating crash. It did not identify the exact missing source pointer, which was deliberately hidden.
+
+The result is not unqualified: four indexed reads materialized all 157 records before the model used
+`inspect_failure_context`; one chronology statement was stronger than the bounded, merged-buffer capture
+supports; and one cgroup recommendation mixed diagnosis with remediation. The full trace and manual claim
+audit are in
+[`../experiments/waydroid-hwcomposer-registry-smoke/`](../experiments/waydroid-hwcomposer-registry-smoke/).
