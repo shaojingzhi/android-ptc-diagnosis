@@ -938,6 +938,8 @@ bounded access, provenance, and auditable follow-up behavior—benefits that thi
 test. Future cases should deliberately include enough noise or distributed evidence to evaluate those
 properties without exposing hidden answers. See [`../experiments/waydroid-hwcomposer-raw-ablation/audit.md`](../experiments/waydroid-hwcomposer-raw-ablation/audit.md).
 
+The complete comparison is now summarized in [`waydroid-raw-vs-registry-experiment.md`](waydroid-raw-vs-registry-experiment.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。

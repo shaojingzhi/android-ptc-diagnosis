@@ -151,6 +151,8 @@ from captured container state; the Waydroid case adds an upstream-confirmed hwco
 failure mechanism and source fix. Neither is a local reproduction. See
 [`docs/public-android-container-validation.md`](docs/public-android-container-validation.md)
 and [`docs/waydroid-hwcomposer-validation.md`](docs/waydroid-hwcomposer-validation.md).
+The RAW-vs-registry comparison is documented in
+[`docs/waydroid-raw-vs-registry-experiment.md`](docs/waydroid-raw-vs-registry-experiment.md).
 
 `binder_flood_001` is a deterministic synthetic stress case for repeated
 downstream Binder and service-unavailable errors. Binder is used as a
