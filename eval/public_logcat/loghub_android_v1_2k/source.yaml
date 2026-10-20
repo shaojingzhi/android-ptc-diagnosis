@@ -1,0 +1,25 @@
+provenance: public_dataset_real_logcat
+dataset: logpai/loghub
+dataset_version: dd61d0952749ee7963bde24220d1be5ede023033
+source_url: https://github.com/logpai/loghub/blob/dd61d0952749ee7963bde24220d1be5ede023033/Android/Android_2k.log
+raw_url: https://raw.githubusercontent.com/logpai/loghub/dd61d0952749ee7963bde24220d1be5ede023033/Android/Android_2k.log
+checked_at: "2026-10-20"
+format: android_logcat_threadtime
+capture_description: "Android_v1 sample collected from an Android smartphone and printed by the Application Framework"
+artifact:
+  file: logcat.txt
+  content_transform: none
+  sha256: 47641549915e662ff590291df266a45f635eedca7c5f1b41a4fa853fe5d2f409
+  bytes: 279076
+  lines: 2000
+license:
+  file: https://github.com/logpai/loghub/blob/dd61d0952749ee7963bde24220d1be5ede023033/LICENSE
+  note: "Research or academic use; retain the Loghub repository URL, paper citation, and license notice"
+privacy_note: "The public sample is retained byte-for-byte; this project performed no additional pseudonymization"
+supports:
+  - "Real Android Logcat parser and timestamp compatibility testing"
+  - "Drain3 and compact-evidence behavior on a noisy public phone capture"
+not_claimed:
+  - "A labeled incident or root-cause benchmark"
+  - "Production provenance"
+  - "Android container-runtime failure coverage"

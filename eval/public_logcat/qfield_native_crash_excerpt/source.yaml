@@ -1,0 +1,30 @@
+provenance: public_incident_real_logcat_excerpt
+source_kind: public_gist_excerpt
+description: "logcat PR 1544 - QField-Crash"
+source_url: https://gist.github.com/jhonalex06/083b7edd3434619e659441ef73d639fa
+raw_url: https://gist.githubusercontent.com/jhonalex06/083b7edd3434619e659441ef73d639fa/raw/cd93e840e55dab77b2c38d51204c274eddd17a5b/qfield_pr1544_logcat.txt
+gist_revision: 3adc0ec27f154c3dd272eb711695bc68b5477fec
+checked_at: "2026-10-20"
+format: android_logcat_threadtime
+source_artifact:
+  sha256: d75f2856a7f5d16ae174571ec29cd7370d1ee596a1b1ad20c61d72ccf4356cb6
+  bytes: 772712
+  lines: 6017
+artifact:
+  file: logcat.txt
+  content_transform: "line slice only; no content edits"
+  source_line_start: 5126
+  source_line_end: 5170
+  sha256: 68aa620e00df81b218c06ac59418e6b8e3894e9ee703ec0b22a752c0e120136a
+  bytes: 6075
+  lines: 45
+license_note: "Short attributed public incident excerpt; no explicit Gist license is assumed"
+privacy_note: "The bounded excerpt contains public package/build/process identifiers and no detected credential, e-mail address, MAC address, SSID, IMEI, or IMSI"
+supports:
+  - "A real native-crash Logcat sequence with surrounding unrelated and cascading records"
+  - "Evidence reachability for SIGSEGV, tombstone, process death, and backtrace records"
+not_claimed:
+  - "A complete incident capture"
+  - "An independently verified root cause or fix"
+  - "Production provenance"
+  - "Android container-runtime failure coverage"

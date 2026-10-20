@@ -139,6 +139,12 @@ one representative per Drain3 template. Event counts are not token counts.
 smoke test. It verifies the Android Emulator/device -> `adb-agent` -> parser path;
 it is not a claim of general Android app diagnosis.
 
+Public, hash-pinned Android Logcat fixtures live under `eval/public_logcat/`, outside
+the frozen replay benchmark. They validate parser, grouping, compact-evidence, and
+provenance behavior on records captured from real devices; they do not supply
+root-cause ground truth. See
+[`docs/public-android-logcat-validation.md`](docs/public-android-logcat-validation.md).
+
 `binder_flood_001` is a deterministic synthetic stress case for repeated
 downstream Binder and service-unavailable errors. Binder is used as a
 runtime/service-health signal, not as an attempt to diagnose Binder internals.

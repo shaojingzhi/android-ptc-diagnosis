@@ -1,0 +1,45 @@
+01-21 12:31:17.113  2537 12404 I chatty  : uid=1000(system) Binder:2537_1E expire 1 line
+01-21 12:31:17.216   883  1186 I SFPerfTracer:      triggers: (rate: 0:0) (0 sw vsyncs) (0 skipped) (84:498990 vsyncs) (86:526333)
+01-21 12:31:17.371   883   883 I SFPerfTracer:      triggers: (rate: 61:9392) (compose: 54:3545) (post: 1:19) (render: 34:1809) (89:511796 frames) (90:523996)
+01-21 12:31:17.371   883   883 D SFPerfTracer:        layers: (4:7) (NavigationBar#0 (0xae7ea000): 0:6805) (StatusBar#0 (0xae4bf000): 0:12224) (com.android.systemui.ImageWallpaper#0 (0xae34a000): 0:124)* (DimLayerController/Stack=0#0 (0xae18b000): 0:569)* (Sprite#0 (0xae2d3000): 0:2)* (animation background stackId=1#0 (0xb0560000): 0:40)* (ch.opengis.qfield_beta/org.qtproject.qt5.android.bindings.QtActivity#0 (0xae1ee000): 0:7) 
+01-21 12:31:18.091   868  1079 E ANDR-PERF-MPCTL: Invalid profile no. 0, total profiles 0 only
+01-21 12:31:18.366 20269 20285 F libc    : Fatal signal 11 (SIGSEGV), code 1, fault addr 0x0 in tid 20285 (qtMainLoopThrea), pid 20269 (gis.qfield_beta)
+01-21 12:31:18.450 20328 20328 W crash_dump32: type=1400 audit(0.0:2772): avc: denied { search } for uid=10215 name="files" dev="dm-1" ino=13710 scontext=u:r:crash_dump:s0:c512,c768 tcontext=u:object_r:app_data_file:s0:c512,c768 tclass=dir permissive=0
+01-21 12:31:18.450 20328 20328 W crash_dump32: type=1400 audit(0.0:2773): avc: denied { search } for uid=10215 name="files" dev="dm-1" ino=13710 scontext=u:r:crash_dump:s0:c512,c768 tcontext=u:object_r:app_data_file:s0:c512,c768 tclass=dir permissive=0
+01-21 12:31:18.460 20328 20328 I crash_dump32: obtaining output fd from tombstoned, type: kDebuggerdTombstone
+01-21 12:31:18.461  2419  2419 I /system/bin/tombstoned: received crash request for pid 20269
+01-21 12:31:18.462 20328 20328 I crash_dump32: performing dump of process 20269 (target tid = 20285)
+01-21 12:31:18.463 20328 20328 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+01-21 12:31:18.463 20328 20328 F DEBUG   : Build fingerprint: 'motorola/potter_n/potter_n:8.1.0/OPS28.85-17-6-2/77e7:user/release-keys'
+01-21 12:31:18.463 20328 20328 F DEBUG   : Revision: 'p3b0'
+01-21 12:31:18.463 20328 20328 F DEBUG   : ABI: 'arm'
+01-21 12:31:18.463 20328 20328 F DEBUG   : pid: 20269, tid: 20285, name: qtMainLoopThrea  >>> ch.opengis.qfield_beta <<<
+01-21 12:31:18.463 20328 20328 F DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x0
+01-21 12:31:18.463 20328 20328 F DEBUG   : Cause: null pointer dereference
+01-21 12:31:18.463 20328 20328 F DEBUG   :     r0 00000000  r1 00000000  r2 e2308c3a  r3 3e45798e
+01-21 12:31:18.463 20328 20328 F DEBUG   :     r4 92fa8590  r5 9216b800  r6 999fa8d8  r7 999fa418
+01-21 12:31:18.463 20328 20328 F DEBUG   :     r8 9216b800  r9 b46fa1b8  sl 0000002b  fp 00000000
+01-21 12:31:18.463 20328 20328 F DEBUG   :     ip 92facd44  sp 999fa318  lr 92efef33  pc 92efef38  cpsr 60030030
+01-21 12:31:18.465 20328 20328 F DEBUG   : 
+01-21 12:31:18.465 20328 20328 F DEBUG   : backtrace:
+01-21 12:31:18.465 20328 20328 F DEBUG   :     #00 pc 00160f38  /data/app/ch.opengis.qfield_beta-j-ZgcWbjSeurUaLhqMtybA==/lib/arm/libqfield_core_armeabi-v7a.so (FeatureModel::applyGeometry()+719)
+01-21 12:31:18.465 20328 20328 F DEBUG   :     #01 pc 00125b17  /data/app/ch.opengis.qfield_beta-j-ZgcWbjSeurUaLhqMtybA==/lib/arm/libqfield_core_armeabi-v7a.so
+01-21 12:31:18.465 20328 20328 F DEBUG   :     #02 pc 001265e7  /data/app/ch.opengis.qfield_beta-j-ZgcWbjSeurUaLhqMtybA==/lib/arm/libqfield_core_armeabi-v7a.so (FeatureModel::qt_metacall(QMetaObject::Call, int, void**)+86)
+01-21 12:31:18.465 20328 20328 F DEBUG   :     #03 pc 000ee4a1  /data/app/ch.opengis.qfield_beta-j-ZgcWbjSeurUaLhqMtybA==/lib/arm/libQt5Qml_armeabi-v7a.so
+01-21 12:31:19.428  2419  2419 E /system/bin/tombstoned: Tombstone written to: /data/tombstones/tombstone_03
+01-21 12:31:19.430  2537 20329 W ActivityManager:   Force finishing activity ch.opengis.qfield_beta/org.qtproject.qt5.android.bindings.QtActivity
+01-21 12:31:19.433  2537  2764 I BootReceiver: Copying /data/tombstones/tombstone_03 to DropBox (SYSTEM_TOMBSTONE)
+01-21 12:31:19.436  2537  2687 I ActivityManager: Showing crash dialog for package ch.opengis.qfield_beta u0
+01-21 12:31:19.439  2537  2685 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.DROPBOX_ENTRY_ADDED flg=0x10 (has extras) } to com.google.android.gms/.stats.service.DropBoxEntryAddedReceiver
+01-21 12:31:19.439  2537  2685 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.DROPBOX_ENTRY_ADDED flg=0x10 (has extras) } to com.google.android.gms/.chimera.GmsIntentOperationService$PersistentTrustedReceiver
+01-21 12:31:19.439   882   882 E lowmemorykiller: Error writing /proc/20269/oom_score_adj; errno=22
+01-21 12:31:19.441  2537  2685 I ActivityManager: Killing 19762:com.google.android.partnersetup/u0a41 (adj 906): empty for 1801s
+01-21 12:31:19.441  2537  2688 I chatty  : uid=1000(system) ActivityManager expire 12 lines
+01-21 12:31:19.482  2537  8641 I chatty  : uid=1000(system) RenderThread expire 2 lines
+01-21 12:31:19.499   883  1164 E SurfaceFlinger: Failed to find layer (SurfaceView - ch.opengis.qfield_beta/org.qtproject.qt5.android.bindings.QtActivity#0) in layer parent (no-parent).
+01-21 12:31:19.499  2537  3230 I chatty  : uid=1000(system) InputDispatcher expire 2 lines
+01-21 12:31:19.499   883  1164 E SurfaceFlinger: Failed to find layer (Background for - SurfaceView - ch.opengis.qfield_beta/org.qtproject.qt5.android.bindings.QtActivity#0) in layer parent (no-parent).
+01-21 12:31:19.499  2537  4462 I WindowManager: WIN DEATH: Window{749caa u0 ch.opengis.qfield_beta/org.qtproject.qt5.android.bindings.QtActivity}
+01-21 12:31:19.500  2537  4462 I chatty  : uid=1000(system) Binder:2537_E expire 1 line
+01-21 12:31:19.501  2537  7013 I ActivityManager: Process ch.opengis.qfield_beta (pid 20269) has died: vis  +99TOP 
+01-21 12:31:19.504   868  1079 E ANDR-PERF-MPCTL: Invalid profile no. 0, total profiles 0 only

@@ -837,6 +837,22 @@ the current ingestion path is Android-Logcat-centric, not evidence that the diag
 on general Linux container incidents. Full characterization and source links are in
 [`public-incident-authenticity-validation.md`](public-incident-authenticity-validation.md).
 
+### Public real Android Logcat validation
+
+To avoid conflating public Linux incident text with Android evidence, two hash-pinned real Logcat
+fixtures now live outside the frozen replay benchmark. The full Loghub Android_v1 sample contributes
+2,000 standard threadtime records from a phone capture; a 45-line QField public crash excerpt retains
+the exact native SIGSEGV, tombstone cause, backtrace, process-death record, and surrounding unrelated
+or cascading errors. The existing parser handled all 2,045 records without fallback, producing 164
+and 38 provenance-preserving compact groups respectively.
+
+This establishes authentic Logcat ingestion and compaction behavior, not diagnosis accuracy. Loghub
+has no per-record incident/root-cause labels, and the QField excerpt is not a complete capture or an
+independently verified fix. In particular, nearby E/F records include performance, crash-dump SELinux,
+lowmemorykiller, and SurfaceFlinger messages that must not automatically become causal evidence. Full
+source ledgers, deterministic results, and reuse boundaries are in
+[`public-android-logcat-validation.md`](public-android-logcat-validation.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。
