@@ -1,0 +1,40 @@
+provenance: public_android_container_incident
+project: waydroid/waydroid
+issue: 1894
+issue_url: https://github.com/waydroid/waydroid/issues/1894
+attachment_url: https://github.com/user-attachments/files/20399644/logcat.txt
+checked_at: "2026-10-20"
+reported_environment:
+  android_build: "LineageOS 20 / Android 13 / waydroid_x86_64"
+source_attachment:
+  sha256: 9765d9d605805b24a3498b354938a7439021a7cd58df303239f780de4381513a
+  bytes: 3020442
+  lines: 24803
+preserved_files:
+  - source_path: logcat.txt
+    source_line_start: 5148
+    source_line_end: 5304
+    local_file: logcat.txt
+    content_transform: exact_contiguous_line_excerpt
+    sha256: b6d62fc4a5eec22730301d5fc6909f71793f52eab137973a50559b5c42f9033b
+    bytes: 23286
+    lines: 157
+maintainer_interpretation:
+  author: casualsnek
+  url: https://github.com/waydroid/waydroid/issues/1894#issuecomment-2890773144
+  statement: "The problematic crash had already been fixed but the fix was missing from the lineage-20 vendor branch; a new image was built"
+fix:
+  repository: waydroid/android_hardware_waydroid
+  commit: 3b2f29d0b41b89fef5c34ed054be589e58e3c7cb
+  url: https://github.com/waydroid/android_hardware_waydroid/commit/3b2f29d0b41b89fef5c34ed054be589e58e3c7cb
+  title: "hwcomposer: Guard against missing wayland pointer"
+  mechanism: "The change guards cursor operations when the display has no Wayland pointer"
+license_note: "Short attributed public issue excerpt; the repository license is not assumed to license issue attachments"
+privacy_note: "The exact excerpt contains public Android build/process data but no detected credential, account, host path, IP address, or personal identifier"
+not_claimed:
+  - "This repository locally reproduced the incident"
+  - "The excerpt is the complete upstream attachment"
+  - "The reporter supplied a post-fix success log"
+  - "The cgroup read-only errors caused the native crash"
+  - "The incident demonstrates a host-kernel defect"
+model_visible: false

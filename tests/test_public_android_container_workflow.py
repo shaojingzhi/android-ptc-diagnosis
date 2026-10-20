@@ -80,3 +80,19 @@ def test_public_workflow_mock_final_can_cite_captured_state():
     assert registry[cited].subject.id == "container:runtime-under-review"
     assert registry[cited].observation.value["Running"] is True
     assert not _FinalModel().bind_tools([]).tools
+
+
+def test_waydroid_workflow_is_log_only_and_keeps_hidden_answer_out_of_prompt():
+    prepared = RUNNER.prepare_evaluation(ROOT, "waydroid_hwcomposer_1894")
+    prompt = prepared["task_prompt"]
+    payload = json.loads(prompt.rsplit("\n", 1)[-1])
+
+    assert len(prepared["events"]) == 157
+    assert len(payload["compact_evidence"]["groups"]) == 73
+    assert prepared["captured_artifacts"] == []
+    assert "captured_runtime_evidence" not in payload
+    assert "waydroid_hwcomposer_1894" not in prompt
+    assert "issuecomment" not in prompt
+    assert "3b2f29d" not in prompt
+    assert "missing wayland pointer" not in prompt.lower()
+    assert "root_cause" not in prompt

@@ -1,4 +1,4 @@
-"""Run one registry-backed workflow on the public redroid incident artifacts."""
+"""Run one registry-backed workflow on a public Android-container incident."""
 
 from __future__ import annotations
 
@@ -20,7 +20,42 @@ from android_ptc_diag.parsing import parse_logcat
 
 
 MODEL_NAME = "deepseek-v4-pro"
+DEFAULT_CASE = "redroid_boot_health_001"
 DEFAULT_INCIDENT_ID = "incident-public-android-container-01"
+
+CASE_CONFIGS = {
+    "redroid_boot_health_001": {
+        "incident_id": DEFAULT_INCIDENT_ID,
+        "captured_artifacts": True,
+        "request": {
+            "symptom": (
+                "An Android container was initially unreachable through its expected shell "
+                "connection during startup."
+            ),
+            "diagnosis_scope": "container_runtime_boundary",
+            "target_component": "Android container runtime boundary",
+            "expected_behavior": "The Android container becomes reachable after startup.",
+            "observed_behavior": (
+                "The initial connection attempt failed; a crash buffer and separate captured "
+                "container/process snapshots are available."
+            ),
+        },
+    },
+    "waydroid_hwcomposer_1894": {
+        "incident_id": "incident-public-android-container-02",
+        "captured_artifacts": False,
+        "request": {
+            "symptom": "An Android container repeatedly fails to complete startup.",
+            "diagnosis_scope": "container_runtime_boundary",
+            "target_component": "Android container graphics/runtime boundary",
+            "expected_behavior": "The Android container completes startup and becomes usable.",
+            "observed_behavior": (
+                "The container remains in a startup loop; a bounded Logcat excerpt from one "
+                "failure cycle is available."
+            ),
+        },
+    },
+}
 
 
 def _model() -> Any:
@@ -153,44 +188,40 @@ class PublicIncidentExecutor(RegistryBackedCompactDirectExecutor):
                 "target_component": request.target_component,
                 "expected_behavior": request.expected_behavior,
                 "observed_behavior": request.observed_behavior,
-                "captured_runtime_evidence": visible,
-                "captured_state_semantics": (
-                    "The container inspect and process-list artifacts are separate captured "
-                    "observations. Their exact collection time is not encoded, so do not infer "
-                    "a strict order between them and Logcat."
-                ),
             }
         )
+        if visible:
+            payload.update(
+                {
+                    "captured_runtime_evidence": visible,
+                    "captured_state_semantics": (
+                        "The container inspect and process-list artifacts are separate "
+                        "captured observations. Their exact collection time is not encoded, "
+                        "so do not infer a strict order between them and Logcat."
+                    ),
+                }
+            )
         return instructions + "\n" + json.dumps(payload, ensure_ascii=False)
 
 
-def prepare_evaluation(root: Path) -> dict[str, Any]:
+def prepare_evaluation(root: Path, case_name: str = DEFAULT_CASE) -> dict[str, Any]:
+    config = CASE_CONFIGS[case_name]
     case_dir = (
         root
         / "eval"
         / "public_android_container_incidents"
-        / "redroid_boot_health_001"
+        / case_name
     )
     events = parse_logcat((case_dir / "logcat.txt").read_text(encoding="utf-8"))
     cluster_events(events)
-    artifacts = _captured_artifacts(case_dir)
-    request = TriageRequest(
-        symptom=(
-            "An Android container was initially unreachable through its expected shell "
-            "connection during startup."
-        ),
-        diagnosis_scope="container_runtime_boundary",
-        target_component="Android container runtime boundary",
-        expected_behavior="The Android container becomes reachable after startup.",
-        observed_behavior=(
-            "The initial connection attempt failed; a crash buffer and separate captured "
-            "container/process snapshots are available."
-        ),
-    )
+    artifacts = _captured_artifacts(case_dir) if config["captured_artifacts"] else []
+    request = TriageRequest(**config["request"])
     executor = PublicIncidentExecutor(None, events, captured_artifacts=artifacts)
     task_prompt = executor._request_prompt(request)
     return {
         "case_dir": case_dir,
+        "case_name": case_name,
+        "default_incident_id": config["incident_id"],
         "events": events,
         "captured_artifacts": artifacts,
         "request": request,
@@ -203,7 +234,8 @@ def prepare_evaluation(root: Path) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--incident-id", default=DEFAULT_INCIDENT_ID)
+    parser.add_argument("--case", choices=sorted(CASE_CONFIGS), default=DEFAULT_CASE)
+    parser.add_argument("--incident-id")
     parser.add_argument("--implementation-commit")
     parser.add_argument("--trace-file", type=Path, required=True)
     args = parser.parse_args()
@@ -211,7 +243,8 @@ def main() -> None:
         raise SystemExit(f"refusing to overwrite trace: {args.trace_file}")
 
     root = Path(__file__).parents[1]
-    prepared = prepare_evaluation(root)
+    prepared = prepare_evaluation(root, args.case)
+    incident_id = args.incident_id or prepared["default_incident_id"]
     repository_commit = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=root,
@@ -226,7 +259,7 @@ def main() -> None:
         captured_artifacts=prepared["captured_artifacts"],
     ).run(
         prepared["request"],
-        case_id=args.incident_id,
+        case_id=incident_id,
         model_metadata={
             "model": MODEL_NAME,
             "provider": "deepseek",
@@ -242,7 +275,8 @@ def main() -> None:
     trace.update(
         {
             "experiment": "public_android_container_registry_smoke",
-            "neutral_incident_id": args.incident_id,
+            "neutral_incident_id": incident_id,
+            "evaluation_case": args.case,
             "implementation_commit": implementation_commit,
             "repository_commit": repository_commit,
             "input_artifacts": {

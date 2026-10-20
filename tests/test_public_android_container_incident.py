@@ -19,6 +19,12 @@ INCIDENT = (
     / "public_android_container_incidents"
     / "redroid_boot_health_001"
 )
+WAYDROID = (
+    Path(__file__).parents[1]
+    / "eval"
+    / "public_android_container_incidents"
+    / "waydroid_hwcomposer_1894"
+)
 
 
 def _source() -> dict:
@@ -105,3 +111,74 @@ def test_redroid_assessment_keeps_evidence_and_claim_boundaries_separate():
     assert not (INCIDENT / "runtime_state.yaml").exists()
     assert not (INCIDENT / "expected.yaml").exists()
     assert "root_cause" not in assessment
+
+
+def test_waydroid_public_excerpt_is_exact_and_hash_pinned():
+    source = yaml.safe_load((WAYDROID / "source.yaml").read_text(encoding="utf-8"))
+    artifact = source["preserved_files"][0]
+    raw = (WAYDROID / artifact["local_file"]).read_bytes()
+
+    assert source["provenance"] == "public_android_container_incident"
+    assert source["source_attachment"]["sha256"] == (
+        "9765d9d605805b24a3498b354938a7439021a7cd58df303239f780de4381513a"
+    )
+    assert artifact["content_transform"] == "exact_contiguous_line_excerpt"
+    assert (artifact["source_line_start"], artifact["source_line_end"]) == (5148, 5304)
+    assert sha256(raw).hexdigest() == artifact["sha256"]
+    assert len(raw) == artifact["bytes"]
+    assert len(raw.splitlines()) == artifact["lines"] == 157
+
+
+def test_waydroid_failure_and_propagation_evidence_remain_reachable():
+    events = parse_logcat((WAYDROID / "logcat.txt").read_text(encoding="utf-8"))
+    expected = {
+        "Cause: null pointer dereference": [37],
+        "wl_proxy_marshal": [44],
+        "hwc_set(": [45],
+        "received signal 11": [67],
+        "DEAD_OBJECT": [85, 155],
+        "received signal 6": [113],
+    }
+
+    assert len(events) == 157
+    for text, indices in expected.items():
+        matches = filter_by_text(events, text=text)
+        assert matches["indices"] == indices
+        materialized = get_events(events, indices=indices)
+        assert [record["index"] for record in materialized["events"]] == indices
+
+    cluster_events(events)
+    compact = build_compact_evidence(events)
+    assert compact["group_count"] == 73
+    grouped = [index for group in compact["groups"] for index in group["indices"]]
+    assert sorted(grouped) == list(range(157))
+    assert len(grouped) == len(set(grouped))
+
+
+def test_waydroid_generic_fixed_baseline_exposes_noise_ranking_failure():
+    events = parse_logcat((WAYDROID / "logcat.txt").read_text(encoding="utf-8"))
+    result = fixed_triage(
+        events,
+        TriageRequest(
+            symptom="Android container repeatedly fails to complete startup",
+            target_component="Android container runtime boundary",
+        ),
+    )
+
+    assert result.primary_candidates[0].event_index == 19
+    assert "Read-only file system" in events[19].message
+    assert 37 in [candidate.event_index for candidate in result.primary_candidates[:3]]
+
+
+def test_waydroid_assessment_separates_log_evidence_from_upstream_fix():
+    assessment = yaml.safe_load((WAYDROID / "assessment.yaml").read_text())
+
+    assert assessment["model_visible"] is False
+    assert assessment["evidence"]["upstream_confirmation"]["fix"].endswith(
+        "3b2f29d0b41b89fef5c34ed054be589e58e3c7cb"
+    )
+    assert assessment["supported_conclusions"]
+    assert assessment["uncertainties"]
+    assert assessment["unsupported_claims"]
+    assert "root_cause" not in assessment
+    assert not (WAYDROID / "runtime_state.yaml").exists()

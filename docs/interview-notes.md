@@ -893,6 +893,21 @@ prove that every sentence is entailed. The result is suitable as an auditable ca
 root-cause success claim or a stability measurement. Full configuration, metrics, and claim audit are
 in [`../experiments/public-android-container-registry-smoke/audit.md`](../experiments/public-android-container-registry-smoke/audit.md).
 
+### Public incident with an upstream-confirmed mechanism
+
+Waydroid issue #1894 adds a different kind of real-data validation: a 24,803-line public Logcat is tied
+to an exact upstream hwcomposer fix rather than only a reported symptom. A byte-exact 157-line excerpt
+preserves one failure cycle. It contains distracting read-only cgroup errors, followed by a null-pointer
+tombstone in `wl_proxy_marshal`/`hwc_set`, hwcomposer signal 11, and SurfaceFlinger `DEAD_OBJECT`/signal 6
+propagation. Upstream commit `3b2f29d` guards use of a missing Wayland pointer.
+
+Offline parsing retained all 157 records in 73 groups. The generic FIXED baseline ranks an earlier cgroup
+error first and the null dereference third, demonstrating on real Logcat that ERROR plus early occurrence
+is not equivalent to incident relevance. The source fix remains model-invisible: a workflow run must infer
+only what the supplied evidence supports, then be audited against the independent upstream record. This is
+stronger ground truth than the earlier redroid case, but still not our own reproduction or a reporter-posted
+before/after fix verification. See [`waydroid-hwcomposer-validation.md`](waydroid-hwcomposer-validation.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。

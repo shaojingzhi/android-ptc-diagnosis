@@ -1,0 +1,27 @@
+model_visible: false
+evidence:
+  crash_excerpt:
+    file: logcat.txt
+    observations:
+      - "The hwcomposer service starts while unrelated cgroup/task-profile errors are also present"
+      - "The composer process reports SIGSEGV and a null pointer dereference"
+      - "The first frames are wl_proxy_marshal and hwc_set in hwcomposer.waydroid.so"
+      - "init records vendor.hwcomposer-2-1 receiving signal 11"
+      - "SurfaceFlinger then aborts after a DEAD_OBJECT HIDL call and receives signal 6"
+      - "AndroidRuntime later reports a Surface DEAD_OBJECT error"
+  upstream_confirmation:
+    issue: https://github.com/waydroid/waydroid/issues/1894
+    fix: https://github.com/waydroid/android_hardware_waydroid/commit/3b2f29d0b41b89fef5c34ed054be589e58e3c7cb
+    observation: "The upstream fix guards use of a missing Wayland pointer in hwcomposer"
+supported_conclusions:
+  - "The primary failure candidate is the hwcomposer native null dereference in the Wayland call path"
+  - "The SurfaceFlinger DEAD_OBJECT abort and later surface errors are propagation candidates"
+  - "The source-level fix independently supports the missing Wayland pointer mechanism"
+uncertainties:
+  - "The Logcat excerpt alone cannot identify which source pointer was null without the upstream fix context"
+  - "The issue does not contain a reporter-supplied post-fix success log"
+unsupported_claims:
+  - "Read-only cgroup setup errors caused the hwcomposer crash"
+  - "SurfaceFlinger was the initiating failure"
+  - "A kernel or Binder implementation defect was proven"
+  - "The repository independently reproduced the failure or verified the fix"

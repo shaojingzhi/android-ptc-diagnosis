@@ -1,0 +1,157 @@
+05-22 19:47:46.531     0     0 I init    : starting service 'vendor.hwcomposer-2-1'...
+05-22 19:47:46.533     0     0 E libprocessgroup: Failed to make and chown /sys/fs/cgroup/uid_1000: Read-only file system
+05-22 19:47:46.533     0     0 E init    : createProcessGroup(1000, 363) failed for service 'vendor.hwcomposer-2-1': Read-only file system
+05-22 19:47:46.538     0     0 W libprocessgroup: Failed to open /dev/cpuset/system-background/tasks: No such file or directory
+05-22 19:47:46.538     0     0 W libprocessgroup: Failed to apply ServiceCapacityLow task profile: No such file or directory
+05-22 19:47:46.538     0     0 E init    : failed to set task profiles
+05-22 19:47:46.689     0     0 I init    : starting service 'bootanim'...
+05-22 19:47:46.690     0     0 E libprocessgroup: Failed to make and chown /sys/fs/cgroup/uid_1003: Read-only file system
+05-22 19:47:46.690     0     0 E init    : createProcessGroup(1003, 386) failed for service 'bootanim': Read-only file system
+05-22 19:47:46.691     0     0 I init    : Control message: Processed ctl.start for 'bootanim' from pid: 105 (/system/bin/surfaceflinger)
+05-22 19:47:46.693     0     0 W libprocessgroup: Failed to open /dev/stune/top-app/tasks: No such file or directory
+05-22 19:47:46.693     0     0 W libprocessgroup: Failed to apply MaxPerformance task profile: No such file or directory
+05-22 19:47:46.693     0     0 E init    : failed to set task profiles
+05-22 19:47:47.029     0     0 I init    : service 'idmap2d' requested start, but it is already running (flags: 4)
+05-22 19:47:47.029     0     0 I init    : Control message: Processed ctl.start for 'idmap2d' from pid: 247 (system_server)
+05-22 19:47:47.140     0     0 I binder  : 80294:80294 ioctl c00c620f 7ffe6df273c8 returned -22
+05-22 19:47:47.218     0     0 I init    : processing action (sys.sysctl.extra_free_kbytes=*) from (/system/etc/init/hw/init.rc:1208)
+05-22 19:47:47.219     0     0 I init    : starting service 'exec 17 (/system/bin/extra_free_kbytes.sh 55371)'...
+05-22 19:47:47.221     0     0 E libprocessgroup: Failed to make and chown /sys/fs/cgroup/uid_0: Read-only file system
+05-22 19:47:47.221     0     0 E init    : createProcessGroup(0, 448) failed for service 'exec 17 (/system/bin/extra_free_kbytes.sh 55371)': Read-only file system
+05-22 19:47:47.221     0     0 I init    : SVC_EXEC service 'exec 17 (/system/bin/extra_free_kbytes.sh 55371)' pid 448 (uid 0 gid 0+0 context default) started; waiting...
+05-22 19:47:47.384     0     0 I init    : Service 'exec 17 (/system/bin/extra_free_kbytes.sh 55371)' (pid 448) exited with status 1 waiting took 0.163000 seconds
+05-22 19:47:47.384     0     0 I init    : Sending signal 9 to service 'exec 17 (/system/bin/extra_free_kbytes.sh 55371)' (pid 448) process group...
+05-22 19:47:47.384     0     0 I libprocessgroup: Successfully killed process cgroup uid 0 pid 448 in 0ms
+05-22 19:47:47.917     0     0 I logd    : logdr: UID=1000 GID=1000 PID=363 n tail=0 logMask=8 pid=363 start=0ns deadline=0ns
+05-22 19:47:47.918     0     0 I logd    : logdr: UID=1000 GID=1000 PID=363 n tail=0 logMask=1 pid=363 start=0ns deadline=0ns
+05-22 19:47:42.023   363   363 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+05-22 19:47:42.023   363   363 F DEBUG   : LineageOS Version: '20.0-20250517-GAPPS-waydroid_x86_64'
+05-22 19:47:42.023   363   363 F DEBUG   : Build fingerprint: 'waydroid/lineage_waydroid_x86_64/waydroid_x86_64:13/TQ3A.230901.001/9:userdebug/test-keys'
+05-22 19:47:42.023   363   363 F DEBUG   : Revision: '0'
+05-22 19:47:42.023   363   363 F DEBUG   : ABI: 'x86_64'
+05-22 19:47:42.023   363   363 F DEBUG   : Timestamp: 2025-05-22 19:47:41.992907456+0000
+05-22 19:47:42.023   363   363 F DEBUG   : Process uptime: 2s
+05-22 19:47:42.023   363   363 F DEBUG   : Cmdline: /vendor/bin/hw/android.hardware.graphics.composer@2.1-service --desktop_file_hint=Waydroid.desktop
+05-22 19:47:42.023   363   363 F DEBUG   : pid: 363, tid: 363, name: composer@2.1-se  >>> /vendor/bin/hw/android.hardware.graphics.composer@2.1-service <<<
+05-22 19:47:42.023   363   363 F DEBUG   : uid: 1000
+05-22 19:47:42.024   363   363 F DEBUG   : signal 0 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr --------
+05-22 19:47:42.024   363   363 F DEBUG   : Cause: null pointer dereference
+05-22 19:47:42.024   363   363 F DEBUG   :     rax 00007ffca67b4f50  rbx 0000000000000000  rcx 0000000000000000  rdx 0000000000000000
+05-22 19:47:42.024   363   363 F DEBUG   :     r8  0000000000000000  r9  0000000000000000  r10 00007fb119809960  r11 00007fb1197cffa8
+05-22 19:47:42.024   363   363 F DEBUG   :     r12 0000000000000001  r13 00007fafd9204d60  r14 00007fafd9204c50  r15 00007fafd9204c50
+05-22 19:47:42.024   363   363 F DEBUG   :     rdi 0000000000000000  rsi 0000000000000000
+05-22 19:47:42.024   363   363 F DEBUG   :     rbp 0000000000000000  rsp 00007ffca67b4db0  rip 00007fae8898e9b2
+05-22 19:47:42.024   363   363 F DEBUG   : backtrace:
+05-22 19:47:42.024   363   363 F DEBUG   :       #00 pc 000000000004c9b2  /vendor/lib64/hw/hwcomposer.waydroid.so (wl_proxy_marshal+242) (BuildId: 773a7240c98179269c13f9612cb0b3d7)
+05-22 19:47:42.024   363   363 F DEBUG   :       #01 pc 000000000003b88c  /vendor/lib64/hw/hwcomposer.waydroid.so (hwc_set(hwc_composer_device_1*, unsigned long, hwc_display_contents_1**)+8988) (BuildId: 773a7240c98179269c13f9612cb0b3d7)
+05-22 19:47:42.024   363   363 F DEBUG   :       #02 pc 0000000000016341  /vendor/lib64/libhwc2on1adapter.so (android::HWC2On1Adapter::setAllDisplays()+481) (BuildId: 41a91dbbb8ed36e4eadf376e00905b17)
+05-22 19:47:42.024   363   363 F DEBUG   :       #03 pc 0000000000015ffd  /vendor/lib64/libhwc2on1adapter.so (android::HWC2On1Adapter::Display::present(int*)+61) (BuildId: 41a91dbbb8ed36e4eadf376e00905b17)
+05-22 19:47:42.024   363   363 F DEBUG   :       #04 pc 0000000000009d85  /vendor/bin/hw/android.hardware.graphics.composer@2.1-service (android::hardware::graphics::composer::V2_1::passthrough::detail::HwcHalImpl<android::hardware::graphics::composer::V2_1::hal::ComposerHal>::presentDisplay(unsigned long, int*, std::__1::vector<unsigned long, std::__1::allocator<unsigned long> >*, std::__1::vector<int, std::__1::allocator<int> >*)+53) (BuildId: 10f546ed4e15c95c6684eddd46b1437b)
+05-22 19:47:42.024   363   363 F DEBUG   :       #05 pc 00000000000116c9  /vendor/bin/hw/android.hardware.graphics.composer@2.1-service (android::hardware::graphics::composer::V2_1::hal::ComposerCommandEngine::executePresentDisplay(unsigned short)+105) (BuildId: 10f546ed4e15c95c6684eddd46b1437b)
+05-22 19:47:42.024   363   363 F DEBUG   :       #06 pc 0000000000010659  /vendor/bin/hw/android.hardware.graphics.composer@2.1-service (android::hardware::graphics::composer::V2_1::hal::ComposerCommandEngine::executeCommand(android::hardware::graphics::composer::V2_1::IComposerClient::Command, unsigned short)+217) (BuildId: 10f546ed4e15c95c6684eddd46b1437b)
+05-22 19:47:42.024   363   363 F DEBUG   :       #07 pc 000000000000e9ee  /vendor/bin/hw/android.hardware.graphics.composer@2.1-service (android::hardware::graphics::composer::V2_1::hal::ComposerCommandEngine::execute(unsigned int, android::hardware::hidl_vec<android::hardware::hidl_handle> const&, bool*, unsigned int*, android::hardware::hidl_vec<android::hardware::hidl_handle>*)+142) (BuildId: 10f546ed4e15c95c6684eddd46b1437b)
+05-22 19:47:42.024   363   363 F DEBUG   :       #08 pc 000000000000cb27  /vendor/bin/hw/android.hardware.graphics.composer@2.1-service (android::hardware::graphics::composer::V2_1::hal::detail::ComposerClientImpl<android::hardware::graphics::composer::V2_1::IComposerClient, android::hardware::graphics::composer::V2_1::hal::ComposerHal>::executeCommands(unsigned int, android::hardware::hidl_vec<android::hardware::hidl_handle> const&, std::__1::function<void (android::hardware::graphics::composer::V2_1::Error, bool, unsigned int, android::hardware::hidl_vec<android::hardware::hidl_handle> const&)>)+103) (BuildId: 10f546ed4e15c95c6684eddd46b1437b)
+05-22 19:47:42.024   363   363 F DEBUG   :       #09 pc 000000000003b0a2  /vendor/lib64/android.hardware.graphics.composer@2.1.so (android::hardware::graphics::composer::V2_1::BnHwComposerClient::_hidl_executeCommands(android::hidl::base::V1_0::BnHwBase*, android::hardware::Parcel const&, android::hardware::Parcel*, std::__1::function<void (android::hardware::Parcel&)>)+546) (BuildId: aeedc809443a1eb6bffff2b75087a373)
+05-22 19:47:42.024   363   363 F DEBUG   :       #10 pc 000000000003bf95  /vendor/lib64/android.hardware.graphics.composer@2.1.so (android::hardware::graphics::composer::V2_1::BnHwComposerClient::onTransact(unsigned int, android::hardware::Parcel const&, android::hardware::Parcel*, unsigned int, std::__1::function<void (android::hardware::Parcel&)>)+3237) (BuildId: aeedc809443a1eb6bffff2b75087a373)
+05-22 19:47:42.024   363   363 F DEBUG   :       #11 pc 00000000000af249  /apex/com.android.vndk.v33/lib64/libhidlbase.so (android::hardware::BHwBinder::transact(unsigned int, android::hardware::Parcel const&, android::hardware::Parcel*, unsigned int, std::__1::function<void (android::hardware::Parcel&)>)+137) (BuildId: 141e4e4c66913c96a419b0159c93c510)
+05-22 19:47:42.024   363   363 F DEBUG   :       #12 pc 00000000000b4ad0  /apex/com.android.vndk.v33/lib64/libhidlbase.so (android::hardware::IPCThreadState::executeCommand(int)+3792) (BuildId: 141e4e4c66913c96a419b0159c93c510)
+05-22 19:47:42.024   363   363 F DEBUG   :       #13 pc 00000000000b3aa5  /apex/com.android.vndk.v33/lib64/libhidlbase.so (android::hardware::IPCThreadState::getAndExecuteCommand()+229) (BuildId: 141e4e4c66913c96a419b0159c93c510)
+05-22 19:47:42.024   363   363 F DEBUG   :       #14 pc 00000000000b50bf  /apex/com.android.vndk.v33/lib64/libhidlbase.so (android::hardware::IPCThreadState::joinThreadPool(bool)+191) (BuildId: 141e4e4c66913c96a419b0159c93c510)
+05-22 19:47:42.024   363   363 F DEBUG   :       #15 pc 00000000000578ad  /apex/com.android.vndk.v33/lib64/libhidlbase.so (android::hardware::joinBinderRpcThreadpool()+29) (BuildId: 141e4e4c66913c96a419b0159c93c510)
+05-22 19:47:42.024   363   363 F DEBUG   :       #16 pc 000000000000835d  /vendor/bin/hw/android.hardware.graphics.composer@2.1-service (main+365) (BuildId: 10f546ed4e15c95c6684eddd46b1437b)
+05-22 19:47:42.024   363   363 F DEBUG   :       #17 pc 0000000000050d29  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+89) (BuildId: d95d1986534e61706d90c20273063252)
+05-22 19:47:48.010     0     0 I binder  : release 80412:80412 transaction 2740644 in, still active
+05-22 19:47:48.010     0     0 I binder  : send failed reply for transaction 2740644 to 80143:80143
+05-22 19:47:48.011     0     0 I binder_alloc: 80412: binder_alloc_buf, no vma
+05-22 19:47:48.011     0     0 I binder  : cannot allocate buffer: vma cleared, target dead or dying
+05-22 19:47:48.011     0     0 I binder  : 80143:80143 transaction call to 80412:0 failed 2740650/29189/-3, code 2 size 60-0 line 3338
+05-22 19:47:48.014     0     0 I init    : Service 'vendor.hwcomposer-2-1' (pid 363) received signal 11
+05-22 19:47:48.014     0     0 I init    : Sending signal 9 to service 'vendor.hwcomposer-2-1' (pid 363) process group...
+05-22 19:47:48.014     0     0 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 363 in 0ms
+05-22 19:47:48.014     0     0 I init    : Sending signal 9 to service 'surfaceflinger' (pid 105) process group...
+05-22 19:47:48.014     0     0 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 105 in 0ms
+05-22 19:47:48.066     0     0 I logd    : logdr: UID=1000 GID=1003 PID=105 n tail=0 logMask=8 pid=105 start=0ns deadline=0ns
+05-22 19:47:48.067     0     0 I logd    : logdr: UID=1000 GID=1003 PID=105 n tail=0 logMask=1 pid=105 start=0ns deadline=0ns
+05-22 19:47:42.172   105   105 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+05-22 19:47:42.172   105   105 F DEBUG   : LineageOS Version: '20.0-20250517-GAPPS-waydroid_x86_64'
+05-22 19:47:42.172   105   105 F DEBUG   : Build fingerprint: 'waydroid/lineage_waydroid_x86_64/waydroid_x86_64:13/TQ3A.230901.001/9:userdebug/test-keys'
+05-22 19:47:42.172   105   105 F DEBUG   : Revision: '0'
+05-22 19:47:42.172   105   105 F DEBUG   : ABI: 'x86_64'
+05-22 19:47:42.172   105   105 F DEBUG   : Timestamp: 2025-05-22 19:47:42.120781532+0000
+05-22 19:47:42.172   105   105 F DEBUG   : Process uptime: 7s
+05-22 19:47:42.172   105   105 F DEBUG   : Cmdline: /system/bin/surfaceflinger
+05-22 19:47:42.172   105   105 F DEBUG   : pid: 105, tid: 105, name: surfaceflinger  >>> /system/bin/surfaceflinger <<<
+05-22 19:47:42.172   105   105 F DEBUG   : uid: 1000
+05-22 19:47:42.172   105   105 F DEBUG   : signal 0 (SIGABRT), code -1 (SI_QUEUE), fault addr --------
+05-22 19:47:42.172   105   105 F DEBUG   : Abort message: 'Attempted to retrieve value from failed HIDL call: Status(EX_TRANSACTION_FAILED): 'DEAD_OBJECT: ''
+05-22 19:47:42.172   105   105 F DEBUG   :     rax 0000000000000000  rbx 0000000000000069  rcx 00007f7b0086068f  rdx 0000000000000006
+05-22 19:47:42.172   105   105 F DEBUG   :     r8  00007f78e033dcd0  r9  00007f78e033dcd0  r10 00007ffe7b3201f0  r11 0000000000000207
+05-22 19:47:42.172   105   105 F DEBUG   :     r12 00007ffe7b320318  r13 0000000000000001  r14 00007ffe7b3201e8  r15 0000000000000069
+05-22 19:47:42.172   105   105 F DEBUG   :     rdi 0000000000000069  rsi 0000000000000069
+05-22 19:47:42.172   105   105 F DEBUG   :     rbp 0000000000000019  rsp 00007ffe7b3201e0  rip 00007f7b0086068f
+05-22 19:47:42.172   105   105 F DEBUG   : backtrace:
+05-22 19:47:42.172   105   105 F DEBUG   :       #00 pc 000000000005f68f  /apex/com.android.runtime/lib64/bionic/libc.so (abort+191) (BuildId: d95d1986534e61706d90c20273063252)
+05-22 19:47:42.172   105   105 F DEBUG   :       #01 pc 00000000000069aa  /system/lib64/liblog.so (__android_log_default_aborter+10) (BuildId: f0538d632eee5d6820b96914c8a1657c)
+05-22 19:47:42.172   105   105 F DEBUG   :       #02 pc 000000000001924e  /system/lib64/libbase.so (android::base::LogMessage::~LogMessage()+350) (BuildId: 9335a3052c0ad43b3680057cf90b0afe)
+05-22 19:47:42.172   105   105 F DEBUG   :       #03 pc 00000000000542e5  /system/lib64/libhidlbase.so (android::hardware::details::return_status::onValueRetrieval() const+229) (BuildId: 79d76731f1cb197e877bb7ef6fe29f38)
+05-22 19:47:42.172   105   105 F DEBUG   :       #04 pc 0000000000177de5  /system/bin/surfaceflinger (android::Hwc2::HidlComposer::setLayerHandleInfo(unsigned long, unsigned long, android::sp<android::GraphicBuffer> const&)+1029) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #05 pc 0000000000272a0e  /system/bin/surfaceflinger (android::compositionengine::impl::OutputLayer::writeStateToHWC(bool, bool, unsigned int, bool, bool)+2894) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #06 pc 00000000002452df  /system/bin/surfaceflinger (android::compositionengine::impl::Output::writeCompositionState(android::compositionengine::CompositionRefreshArgs const&)+751) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #07 pc 00000000002435d5  /system/bin/surfaceflinger (android::compositionengine::impl::Output::present(android::compositionengine::CompositionRefreshArgs const&)+101) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #08 pc 000000000023abae  /system/bin/surfaceflinger (android::compositionengine::impl::CompositionEngine::present(android::compositionengine::CompositionRefreshArgs&)+254) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #09 pc 00000000001f4799  /system/bin/surfaceflinger (android::SurfaceFlinger::composite(long, long)+2361) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #10 pc 00000000001cc668  /system/bin/surfaceflinger (android::impl::MessageQueue::Handler::handleMessage(android::Message const&)+72) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #11 pc 00000000000184af  /system/lib64/libutils.so (android::Looper::pollInner(int)+447) (BuildId: 056174139c244cde0be9a8d5970636f2)
+05-22 19:47:42.172   105   105 F DEBUG   :       #12 pc 000000000001828e  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+110) (BuildId: 056174139c244cde0be9a8d5970636f2)
+05-22 19:47:42.172   105   105 F DEBUG   :       #13 pc 00000000001cccf1  /system/bin/surfaceflinger (android::impl::MessageQueue::waitMessage()+97) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #14 pc 00000000001d5fb8  /system/bin/surfaceflinger (android::scheduler::Scheduler::run()+24) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #15 pc 000000000023a4ba  /system/bin/surfaceflinger (main+2090) (BuildId: 89bf5750abc4ff379ccd5725e50670a5)
+05-22 19:47:42.172   105   105 F DEBUG   :       #16 pc 0000000000050d29  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+89) (BuildId: d95d1986534e61706d90c20273063252)
+05-22 19:47:48.165     0     0 I binder  : release 80143:80194 transaction 2740296 in, still active
+05-22 19:47:48.165     0     0 I binder  : send failed reply for transaction 2740296 to 80294:80584
+05-22 19:47:48.165     0     0 I binder  : release 80143:80585 transaction 2740556 in, still active
+05-22 19:47:48.165     0     0 I binder  : send failed reply for transaction 2740556 to 80294:80318
+05-22 19:47:48.167     0     0 I init    : Service 'surfaceflinger' (pid 105) received signal 6
+05-22 19:47:48.167     0     0 I init    : Sending signal 9 to service 'surfaceflinger' (pid 105) process group...
+05-22 19:47:48.167     0     0 I libprocessgroup: Successfully killed process cgroup uid 1000 pid 105 in 0ms
+05-22 19:47:48.167     0     0 I init    : Sending signal 9 to service 'zygote' (pid 73) process group...
+05-22 19:47:48.167     0     0 I libprocessgroup: Successfully killed process cgroup uid 0 pid 73 in 0ms
+05-22 19:47:48.168     0     0 E init    : Control message: Could not find 'aidl/SurfaceFlinger' for ctl.interface_start from pid: 18 (/system/bin/servicemanager)
+05-22 19:47:48.169     0     0 I init    : starting service 'surfaceflinger'...
+05-22 19:47:48.169     0     0 I init    : Could not create socket 'pdx/system/vr/display/client': Failed to bind socket 'pdx/system/vr/display/client': No such file or directory
+05-22 19:47:48.169     0     0 I init    : Could not create socket 'pdx/system/vr/display/manager': Failed to bind socket 'pdx/system/vr/display/manager': No such file or directory
+05-22 19:47:48.169     0     0 I init    : Could not create socket 'pdx/system/vr/display/vsync': Failed to bind socket 'pdx/system/vr/display/vsync': No such file or directory
+05-22 19:47:48.170     0     0 E libprocessgroup: Failed to make and chown /sys/fs/cgroup/uid_1000: Read-only file system
+05-22 19:47:48.170     0     0 E init    : createProcessGroup(1000, 558) failed for service 'surfaceflinger': Read-only file system
+05-22 19:47:48.172     0     0 W libprocessgroup: Failed to open /dev/stune/foreground/tasks: No such file or directory
+05-22 19:47:48.172     0     0 W libprocessgroup: Failed to apply HighPerformance task profile: No such file or directory
+05-22 19:47:48.172     0     0 E init    : failed to set task profiles
+05-22 19:47:48.181     0     0 I binder  : undelivered death notification, 00007ff971804fe0
+05-22 19:47:48.186     0     0 I init    : Service 'bootanim' (pid 386) received signal 9 oneshot service took 1.496000 seconds in background
+05-22 19:47:48.186     0     0 I init    : Sending signal 9 to service 'bootanim' (pid 386) process group...
+05-22 19:47:48.186     0     0 I libprocessgroup: Successfully killed process cgroup uid 1003 pid 386 in 0ms
+05-22 19:47:48.250     0     0 E init    : Control message: Could not find 'android.hardware.graphics.composer@2.1::IComposer/default' for ctl.interface_start from pid: 19 (/system/bin/hwservicemanager)
+05-22 19:47:48.250     0     0 E init    : Control message: Could not find 'android.hardware.graphics.composer@2.1::IComposer/default' for ctl.interface_start from pid: 19 (/system/bin/hwservicemanager)
+05-22 19:47:49.170     0     0 E init    : Control message: Could not find 'aidl/SurfaceFlinger' for ctl.interface_start from pid: 18 (/system/bin/servicemanager)
+05-22 19:47:49.252     0     0 E init    : Control message: Could not find 'android.hardware.graphics.composer@2.1::IComposer/default' for ctl.interface_start from pid: 19 (/system/bin/hwservicemanager)
+05-22 19:47:50.171     0     0 E init    : Control message: Could not find 'aidl/SurfaceFlinger' for ctl.interface_start from pid: 18 (/system/bin/servicemanager)
+05-22 19:47:50.253     0     0 E init    : Control message: Could not find 'android.hardware.graphics.composer@2.1::IComposer/default' for ctl.interface_start from pid: 19 (/system/bin/hwservicemanager)
+05-22 19:47:51.172     0     0 E init    : Control message: Could not find 'aidl/SurfaceFlinger' for ctl.interface_start from pid: 18 (/system/bin/servicemanager)
+05-22 19:47:51.254     0     0 E init    : Control message: Could not find 'android.hardware.graphics.composer@2.1::IComposer/default' for ctl.interface_start from pid: 19 (/system/bin/hwservicemanager)
+05-22 19:47:51.535     0     0 I init    : starting service 'vendor.hwcomposer-2-1'...
+05-22 19:47:51.537     0     0 E libprocessgroup: Failed to make and chown /sys/fs/cgroup/uid_1000: Read-only file system
+05-22 19:47:51.538     0     0 E init    : createProcessGroup(1000, 576) failed for service 'vendor.hwcomposer-2-1': Read-only file system
+05-22 19:47:51.542     0     0 W libprocessgroup: Failed to open /dev/cpuset/system-background/tasks: No such file or directory
+05-22 19:47:51.542     0     0 W libprocessgroup: Failed to apply ServiceCapacityLow task profile: No such file or directory
+05-22 19:47:51.542     0     0 E init    : failed to set task profiles
+05-22 19:47:51.628     0     0 I init    : starting service 'bootanim'...
+05-22 19:47:51.629     0     0 I binder  : 80319:80294 cannot find target node
+05-22 19:47:51.630     0     0 E libprocessgroup: Failed to make and chown /sys/fs/cgroup/uid_1003: Read-only file system
+05-22 19:47:51.630     0     0 E init    : createProcessGroup(1003, 595) failed for service 'bootanim': Read-only file system
+05-22 19:47:51.630     0     0 I init    : Control message: Processed ctl.start for 'bootanim' from pid: 558 (/system/bin/surfaceflinger)
+05-22 19:47:51.632     0     0 W libprocessgroup: Failed to open /dev/stune/top-app/tasks: No such file or directory
+05-22 19:47:51.632     0     0 W libprocessgroup: Failed to apply MaxPerformance task profile: No such file or directory
+05-22 19:47:51.632     0     0 E init    : failed to set task profiles
+05-22 19:47:46.548   247   247 E AndroidRuntime: *** FATAL EXCEPTION IN SYSTEM PROCESS: main
+05-22 19:47:46.548   247   247 E AndroidRuntime: android.view.Surface$OutOfResourcesException: DEAD_OBJECT
+05-22 19:47:46.548   247   247 E AndroidRuntime: 	at android.view.SurfaceControl.nativeCreate(Native Method)
