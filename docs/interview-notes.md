@@ -869,6 +869,30 @@ symptom, or whether recovery remained stable. Offline parsing retained all 75 di
 45 groups with exact source-line provenance; no runtime state or root-cause label was invented. See
 [`public-android-container-validation.md`](public-android-container-validation.md).
 
+### One real-data registry workflow smoke
+
+One frozen `deepseek-v4-pro` run exercised the registry-backed Compact-DIRECT workflow on those same
+public redroid artifacts. The log remained authentic Logcat, while Docker state and the complete
+process-list capture were registered as system-owned, initially visible EvidenceItems rather than
+invented replay runtime state. The model-visible tool surface therefore stayed at the nine log
+evidence tools; no synthetic process/service inspection was exposed. The system also stated that the
+two state snapshots have no encoded collection time and cannot be strictly ordered against Logcat.
+
+The run produced an accepted final in 5 model turns and 6 tool calls, using 112,000 input and 2,482
+output tokens over 37.9 seconds. It performed indexed reads for 71 of 75 normalized events, did not
+use `inspect_failure_context`, and cited both captured-state handles. It correctly surfaced the
+system_server native crash, DeadSystem propagation, a distinct audio-service crash, and the captured
+running/process state. It also retained useful gaps about the failed-connection timestamp,
+pre-buffer logs, and snapshot timing.
+
+Acceptance did not imply semantic correctness. The final called the captured state “subsequent
+recovery” despite the missing snapshot timestamps, and introduced a “known class” memtrack/null-handle
+explanation not established by the run's evidence. This is the clearest demonstration of the current
+boundary: the registry proves that references exist and preserves their provenance, but does not
+prove that every sentence is entailed. The result is suitable as an auditable case study, not as a
+root-cause success claim or a stability measurement. Full configuration, metrics, and claim audit are
+in [`../experiments/public-android-container-registry-smoke/audit.md`](../experiments/public-android-container-registry-smoke/audit.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。
