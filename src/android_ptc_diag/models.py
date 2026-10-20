@@ -206,7 +206,7 @@ class SimplifiedDiagnosis(BaseModel):
 class EvidenceSubject(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: Literal["event", "process", "service", "mount", "cgroup"]
+    type: Literal["event", "process", "service", "mount", "cgroup", "container"]
     id: str = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -233,11 +233,12 @@ class EvidenceProvenance(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    origin: Literal["compact_group", "tool_result"]
+    origin: Literal["compact_group", "tool_result", "initial_artifact"]
     event_index: int | None = None
     group_id: int | None = None
     tool_call_id: str | None = None
     tool_name: str | None = None
+    artifact_id: str | None = None
     result_path: list[str | int] = Field(default_factory=list)
 
 

@@ -150,6 +150,37 @@ class EvidenceRegistry:
             )
         return added
 
+    def add_initial_artifact(
+        self,
+        *,
+        artifact_id: str,
+        subject_type: str,
+        subject_id: str,
+        observations: dict[str, Any],
+    ) -> list[EvidenceItem]:
+        """Register exact fields from a model-visible captured artifact."""
+        if subject_type not in {"process", "service", "mount", "cgroup", "container"}:
+            raise ValueError(f"unsupported artifact subject type: {subject_type}")
+        canonical_id = f"{subject_type}:{subject_id}"
+        provenance = EvidenceProvenance(
+            origin="initial_artifact",
+            artifact_id=artifact_id,
+            result_path=[],
+        )
+        added = [self._add_entity(subject_type, canonical_id, provenance)]
+        for field, value in observations.items():
+            added.append(
+                self._add_observation(
+                    "runtime_state",
+                    subject_type,
+                    canonical_id,
+                    field,
+                    value,
+                    provenance.model_copy(update={"result_path": [field]}),
+                )
+            )
+        return added
+
     def add_tool_result(
         self,
         *,
