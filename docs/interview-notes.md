@@ -921,6 +921,23 @@ persistence of cgroup failures, and mixed a cgroup remediation into recommended 
 real-data attribution success with an auditable confirmed mechanism, not evidence of general accuracy.
 See [`../experiments/waydroid-hwcomposer-registry-smoke/audit.md`](../experiments/waydroid-hwcomposer-registry-smoke/audit.md).
 
+### RAW ablation on the same confirmed incident
+
+To test whether the registry/compact workflow was necessary for this particular diagnosis, one strict
+RAW run gave DeepSeek the same 157 real Logcat lines and neutral symptom, with no tools or upstream fix
+context. It found the same hwcomposer null-pointer candidate and kept more explicit uncertainty about
+cgroup and Binder ordering. It used 10,886 tokens / 10.3 seconds, versus 123,695 / 33.3 seconds for the
+registry-backed run. The difference is primarily one no-tool call versus six tool calls and repeated
+contexts, not a claim that raw logs always cost less.
+
+RAW was semantically useful but structurally rejected because `notes` was a string instead of the required
+list. The raw path also had no EvidenceItem registry or deterministic reference validation. This changes
+the project claim: the Waydroid tombstone is strong enough for direct diagnosis, so the system is not
+proven necessary to find this one failure. The system's defensible contribution remains evidence identity,
+bounded access, provenance, and auditable follow-up behavior—benefits that this high-signal RAW case cannot
+test. Future cases should deliberately include enough noise or distributed evidence to evaluate those
+properties without exposing hidden answers. See [`../experiments/waydroid-hwcomposer-raw-ablation/audit.md`](../experiments/waydroid-hwcomposer-raw-ablation/audit.md).
+
 - benchmark cases 是 synthetic replay，不是 Huawei production data。
 - KMessage monotonic timestamp 与 Logcat wall-clock 没有可靠 clock alignment；mixed-source view 明确将 cross-source order 标为 unknown。
 - runtime-state checks 当前由 replay fixture 驱动，不是 production device/runtime integration。

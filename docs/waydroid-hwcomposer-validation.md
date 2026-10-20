@@ -69,3 +69,15 @@ The result is not unqualified: four indexed reads materialized all 157 records b
 supports; and one cgroup recommendation mixed diagnosis with remediation. The full trace and manual claim
 audit are in
 [`../experiments/waydroid-hwcomposer-registry-smoke/`](../experiments/waydroid-hwcomposer-registry-smoke/).
+
+## RAW ablation
+
+A single no-tool RAW run used the identical 157-line excerpt and neutral incident context. It found the
+same hwcomposer null-dereference candidate and kept better explicit uncertainty about the cgroup and
+Binder records, using 10,886 total tokens in 10.3 seconds. Its final was rejected only because `notes` was
+returned as a string instead of the required list; the raw payload remains fully auditable. The registry
+run was accepted and preserved machine-validated EvidenceItem references, but used 123,695 tokens after
+four turns of tool/result context. This is not an accuracy or efficiency claim beyond this one case; it
+shows that the case's tombstone is strong enough for direct raw diagnosis, while the registry path's value
+is provenance and bounded follow-up. The complete comparison is in
+[`../experiments/waydroid-hwcomposer-raw-ablation/`](../experiments/waydroid-hwcomposer-raw-ablation/).
